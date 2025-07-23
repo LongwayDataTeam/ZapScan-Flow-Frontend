@@ -1,0 +1,19 @@
+# Frontend Environment Variables Template
+# Copy this to .env file in the frontend directory
+
+# React App Environment Variables
+REACT_APP_NAME=Fulfillment Tracking System
+REACT_APP_VERSION=1.0.0
+REACT_APP_API_URL=http://localhost:8000
+
+# Development Settings
+REACT_APP_DEBUG=true
+REACT_APP_ENVIRONMENT=development
+
+# Feature Flags
+REACT_APP_ENABLE_LOGGING=true
+REACT_APP_ENABLE_ANALYTICS=false
+
+# API Configuration
+REACT_APP_BACKEND_URL=http://localhost:8000
+REACT_APP_API_VERSION=v1 
