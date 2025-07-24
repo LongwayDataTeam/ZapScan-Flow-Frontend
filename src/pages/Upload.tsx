@@ -45,6 +45,7 @@ const Upload: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState('');
   const [uploadMode, setUploadMode] = useState<'simple' | 'detailed'>('simple');
+  const [duplicateHandling, setDuplicateHandling] = useState<'allow' | 'skip' | 'update'>('allow');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearLoading, setClearLoading] = useState(false);
 
@@ -138,7 +139,7 @@ const Upload: React.FC = () => {
       }
 
       // Upload to local backend
-      const localResponse = await fetch('http://localhost:8000/api/v1/trackers/upload/', {
+      const localResponse = await fetch(`http://localhost:8000/api/v1/trackers/upload/?duplicate_handling=${duplicateHandling}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,12 +181,25 @@ const Upload: React.FC = () => {
     try {
       // Parse CSV-like data
       const lines = trackerCodes.trim().split('\n');
-      const headers = lines[0].split('\t'); // Tab-separated
+      
+      // Detect separator (comma or tab)
+      const firstLine = lines[0];
+      const hasCommas = firstLine.includes(',');
+      const hasTabs = firstLine.includes('\t');
+      
+      let separator = '\t'; // default to tab
+      if (hasCommas && !hasTabs) {
+        separator = ',';
+      } else if (hasTabs) {
+        separator = '\t';
+      }
+      
+      const headers = lines[0].split(separator);
       
       const trackers: TrackerData[] = [];
       
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split('\t');
+        const values = lines[i].split(separator);
         if (values.length >= headers.length) {
           const tracker: TrackerData = {
             shipment_tracker: values[3] || '', // Shipment Tracker column
@@ -221,7 +235,7 @@ const Upload: React.FC = () => {
       }
 
       // Upload to local backend
-      const localResponse = await fetch('http://localhost:8000/api/v1/trackers/upload-detailed/', {
+      const localResponse = await fetch(`http://localhost:8000/api/v1/trackers/upload-detailed/?duplicate_handling=${duplicateHandling}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -377,10 +391,57 @@ const Upload: React.FC = () => {
                 </div>
               </div>
 
+              {/* Duplicate Handling Options */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Duplicate Handling
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDuplicateHandling('allow')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      duplicateHandling === 'allow'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    title="Allow multiple entries with same tracking ID"
+                  >
+                    Allow Duplicates
+                  </button>
+                  <button
+                    onClick={() => setDuplicateHandling('skip')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      duplicateHandling === 'skip'
+                        ? 'bg-yellow-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    title="Skip entries with existing tracking ID"
+                  >
+                    Skip Duplicates
+                  </button>
+                  <button
+                    onClick={() => setDuplicateHandling('update')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      duplicateHandling === 'update'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    title="Update existing entries with same tracking ID"
+                  >
+                    Update Existing
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {duplicateHandling === 'allow' && 'Multiple entries with same tracking ID will be kept separate'}
+                  {duplicateHandling === 'skip' && 'Entries with existing tracking ID will be skipped'}
+                  {duplicateHandling === 'update' && 'Existing entries with same tracking ID will be updated'}
+                </p>
+              </div>
+
               {/* File Upload */}
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Upload File ({uploadMode === 'simple' ? 'CSV/TXT' : 'Tab-separated'})
+                                      Upload File ({uploadMode === 'simple' ? 'CSV/TXT' : 'CSV/Tab-separated'})
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
                   <input
@@ -396,7 +457,7 @@ const Upload: React.FC = () => {
                     <p className="text-xs text-gray-500 mt-1">
                       {uploadMode === 'simple' 
                         ? 'CSV, TXT files supported' 
-                        : 'Tab-separated files with headers supported'
+                        : 'CSV, Tab-separated files with headers supported'
                       }
                     </p>
                   </label>
@@ -423,7 +484,7 @@ const Upload: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">
                   {uploadMode === 'simple' 
                     ? 'Enter one tracker code per line or separate with commas'
-                    : 'Paste your tab-separated data with headers (copy from Excel)'
+                    : 'Paste your CSV or tab-separated data with headers (copy from Excel)'
                   }
                 </p>
               </div>

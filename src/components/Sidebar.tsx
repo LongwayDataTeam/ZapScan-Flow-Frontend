@@ -5,8 +5,7 @@ import {
   CubeIcon, 
   CloudArrowUpIcon, 
   ChartBarIcon, 
-  QrCodeIcon,
-  DocumentTextIcon
+  QrCodeIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar: React.FC = () => {
