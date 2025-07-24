@@ -1,5 +1,5 @@
 import React from 'react';
-import { TruckIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { TruckIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 interface TruckProgressProps {
   trackerCode: string;

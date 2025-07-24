@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { QrCodeIcon, CheckCircleIcon, ExclamationTriangleIcon, CubeIcon, TruckIcon, MapPinIcon, CurrencyRupeeIcon, ShoppingBagIcon, ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { QrCodeIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import TruckProgress from '../../components/TruckProgress';
 

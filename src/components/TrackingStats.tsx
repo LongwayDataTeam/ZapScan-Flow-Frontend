@@ -69,12 +69,12 @@ const TrackingStats: React.FC<TrackingStatsProps> = ({ stats, loading = false })
         <div>
           <div className="flex justify-between items-center mb-1">
             <span className="text-xs font-medium text-gray-700">Label Scan Progress</span>
-            <span className="text-xs font-bold text-blue-600">{stats.label_percentage}%</span>
+            <span className="text-xs font-bold text-blue-600">{stats.label_percentage || 0}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
               className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${stats.label_percentage}%` }}
+              style={{ width: `${stats.label_percentage || 0}%` }}
             ></div>
           </div>
         </div>
@@ -82,12 +82,12 @@ const TrackingStats: React.FC<TrackingStatsProps> = ({ stats, loading = false })
         <div>
           <div className="flex justify-between items-center mb-1">
             <span className="text-xs font-medium text-gray-700">Packing Scan Progress</span>
-            <span className="text-xs font-bold text-yellow-600">{stats.packing_percentage}%</span>
+            <span className="text-xs font-bold text-yellow-600">{stats.packing_percentage || 0}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
               className="bg-yellow-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${stats.packing_percentage}%` }}
+              style={{ width: `${stats.packing_percentage || 0}%` }}
             ></div>
           </div>
         </div>
@@ -95,12 +95,12 @@ const TrackingStats: React.FC<TrackingStatsProps> = ({ stats, loading = false })
         <div>
           <div className="flex justify-between items-center mb-1">
             <span className="text-xs font-medium text-gray-700">Dispatch Scan Progress</span>
-            <span className="text-xs font-bold text-purple-600">{stats.dispatch_percentage}%</span>
+            <span className="text-xs font-bold text-purple-600">{stats.dispatch_percentage || 0}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
               className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${stats.dispatch_percentage}%` }}
+              style={{ width: `${stats.dispatch_percentage || 0}%` }}
             ></div>
           </div>
         </div>
@@ -108,12 +108,12 @@ const TrackingStats: React.FC<TrackingStatsProps> = ({ stats, loading = false })
         <div>
           <div className="flex justify-between items-center mb-1">
             <span className="text-xs font-medium text-gray-700">Overall Completion</span>
-            <span className="text-xs font-bold text-green-600">{stats.completion_percentage}%</span>
+            <span className="text-xs font-bold text-green-600">{stats.completion_percentage || 0}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
               className="bg-green-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${stats.completion_percentage}%` }}
+              style={{ width: `${stats.completion_percentage || 0}%` }}
             ></div>
           </div>
         </div>
@@ -126,14 +126,16 @@ const TrackingStats: React.FC<TrackingStatsProps> = ({ stats, loading = false })
             <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
             <span className="text-xs font-medium text-gray-700">Completed Trackers</span>
           </div>
-          <span className="text-sm font-bold text-green-600">{stats.completed}</span>
+          <span className="text-sm font-bold text-green-600">{stats.completed || 0}</span>
         </div>
         <div className="flex items-center justify-between mt-1">
           <div className="flex items-center">
             <ClockIcon className="h-4 w-4 text-blue-600 mr-2" />
             <span className="text-xs font-medium text-gray-700">In Progress</span>
           </div>
-          <span className="text-sm font-bold text-blue-600">{stats.total_uploaded - stats.completed}</span>
+          <span className="text-sm font-bold text-blue-600">
+            {Math.max(0, (stats.total_uploaded || 0) - (stats.completed || 0))}
+          </span>
         </div>
       </div>
     </div>
