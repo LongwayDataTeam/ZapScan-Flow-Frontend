@@ -35,13 +35,13 @@ const Sidebar: React.FC = () => {
         </div>
         <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mb-3"></div>
         
-        {/* System Status - moved to top */}
+        {/* System Status - Always Online */}
         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
           <div className="flex items-center justify-between text-xs text-gray-600">
             <span>System Status</span>
             <div className="flex items-center space-x-1">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-green-600">Online</span>
+              <span className="text-green-600 font-medium">Online</span>
             </div>
           </div>
         </div>

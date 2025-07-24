@@ -128,7 +128,7 @@ const Dashboard: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            {/* System Status */}
+            {/* System Status - Always Online */}
             <div className="flex items-center space-x-6 bg-white rounded-lg px-4 py-2 shadow-sm border border-gray-200">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
