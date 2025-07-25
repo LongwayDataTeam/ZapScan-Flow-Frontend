@@ -41,7 +41,7 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "type-check": "tsc --noEmit",
-    "vercel-build": "set GENERATE_SOURCEMAP=false && set CI=false && set DISABLE_ESLINT_PLUGIN=true && react-scripts build"
+    "vercel-build": "set \"CI=false\" && set \"DISABLE_ESLINT_PLUGIN=true\" && set \"GENERATE_SOURCEMAP=false\" && react-scripts build"
   },
 
   "browserslist": {
