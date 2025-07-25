@@ -37,13 +37,9 @@ const API_PATHS = {
 // Secure API service that doesn't expose backend URL
 class SecureAPIService {
   private static getBaseURL(): string {
-    // In production, this will be proxied through Vercel
-    // The actual backend URL is never exposed in client code
-    if (process.env.NODE_ENV === 'production') {
-      return '/api'; // Use relative path in production (proxied by Vercel)
-    }
-    // In development, use environment variable or default
-    return process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    // Always use the production backend URL for now
+    // This ensures the app works in production
+    return 'https://zapscan-lw-backend-v2-250725-477154991805.asia-south2.run.app';
   }
 
   static getEndpoint(path: string): string {
