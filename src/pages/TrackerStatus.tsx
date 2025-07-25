@@ -2,16 +2,15 @@ import React, { useState, useEffect } from 'react';
 import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
-  ClockIcon,
   ExclamationTriangleIcon,
   TruckIcon,
-  UserIcon,
   CurrencyRupeeIcon,
   MapPinIcon,
   FunnelIcon
 } from '@heroicons/react/24/outline';
 import TruckProgress from '../components/TruckProgress';
 import TrackingStats from '../components/TrackingStats';
+import API_ENDPOINTS from '../config/api';
 
 interface TrackerStatus {
   tracker_code: string;
@@ -73,7 +72,7 @@ const TrackerStatus: React.FC = () => {
 
   const fetchTrackers = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/trackers/');
+      const response = await fetch(API_ENDPOINTS.ALL_TRACKERS);
       if (response.ok) {
         const data = await response.json();
         setTrackers(data.trackers || []);
@@ -87,7 +86,7 @@ const TrackerStatus: React.FC = () => {
 
   const fetchTrackingStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/tracking/stats');
+      const response = await fetch(API_ENDPOINTS.TRACKING_STATS);
       if (response.ok) {
         const data = await response.json();
         setTrackingStats(data);

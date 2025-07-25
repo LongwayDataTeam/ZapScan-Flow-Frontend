@@ -8,6 +8,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import TrackingStats from '../components/TrackingStats';
+import API_ENDPOINTS from '../config/api';
 
 interface DashboardStats {
   total_products: number;
@@ -61,7 +62,7 @@ const Dashboard: React.FC = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/dashboard/stats');
+      const response = await fetch(API_ENDPOINTS.DASHBOARD_STATS);
       if (response.ok) {
         const data = await response.json();
         setStats(data);
@@ -75,7 +76,7 @@ const Dashboard: React.FC = () => {
 
   const fetchTrackingStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/tracking/stats');
+      const response = await fetch(API_ENDPOINTS.TRACKING_STATS);
       if (response.ok) {
         const data = await response.json();
         
@@ -115,9 +116,9 @@ const Dashboard: React.FC = () => {
     try {
       // Fetch recent scans from all types
       const [labelResponse, packingResponse, dispatchResponse] = await Promise.all([
-        fetch('http://localhost:8000/api/v1/scan/recent/label?page=1&limit=5'),
-        fetch('http://localhost:8000/api/v1/scan/recent/packing?page=1&limit=5'),
-        fetch('http://localhost:8000/api/v1/scan/recent/dispatch?page=1&limit=5')
+        fetch(`${API_ENDPOINTS.RECENT_LABEL_SCANS}?page=1&limit=5`),
+        fetch(`${API_ENDPOINTS.RECENT_PACKING_SCANS}?page=1&limit=5`),
+        fetch(`${API_ENDPOINTS.RECENT_DISPATCH_SCANS}?page=1&limit=5`)
       ]);
 
       const allActivities: RecentActivity[] = [];
@@ -161,7 +162,7 @@ const Dashboard: React.FC = () => {
   const handleClearData = async () => {
     setClearLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/system/clear-data/', {
+      const response = await fetch(API_ENDPOINTS.CLEAR_DATA, {
         method: 'POST',
       });
       

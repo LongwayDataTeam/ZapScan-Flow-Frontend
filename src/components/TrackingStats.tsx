@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChartBarIcon, TruckIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 interface TrackingStats {
   total_uploaded: number;

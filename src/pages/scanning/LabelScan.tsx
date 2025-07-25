@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { QrCodeIcon, CheckCircleIcon, ExclamationTriangleIcon, CubeIcon, TruckIcon, MapPinIcon, CurrencyRupeeIcon, ShoppingBagIcon, ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { useNavigate } from 'react-router-dom';
-import TruckProgress from '../../components/TruckProgress';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { QrCodeIcon, CheckCircleIcon, ExclamationTriangleIcon, TruckIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import API_ENDPOINTS from '../../config/api';
 
 interface TrackerDetails {
   g_code?: string;
@@ -60,7 +59,6 @@ interface MultiSkuProgress {
 }
 
 const LabelScan: React.FC = () => {
-  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [trackerCode, setTrackerCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,12 +66,10 @@ const LabelScan: React.FC = () => {
   const [error, setError] = useState('');
   const [trackerDetails, setTrackerDetails] = useState<TrackerDetails | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [currentSkuIndex, setCurrentSkuIndex] = useState(0); // Current SKU being scanned
   const [multiSkuProgress, setMultiSkuProgress] = useState<MultiSkuProgress | null>(null);
   const [selectedSkuName, setSelectedSkuName] = useState<string>('');
   const [scanCountData, setScanCountData] = useState<any>(null);
-  const [isDuplicate, setIsDuplicate] = useState(false);
-  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [currentSkuIndex, setCurrentSkuIndex] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   
@@ -94,10 +90,10 @@ const LabelScan: React.FC = () => {
   const endIndex = startIndex + itemsPerPage;
 
   // Fetch platform statistics
-  const fetchPlatformStats = async () => {
+  const fetchPlatformStats = useCallback(async () => {
     try {
       setLoadingStats(true);
-      const response = await fetch('http://localhost:8000/api/v1/scan/statistics/platform?scan_type=label', {
+      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS}?scan_type=label`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -117,13 +113,13 @@ const LabelScan: React.FC = () => {
     } finally {
       setLoadingStats(false);
     }
-  };
+  }, []);
 
   // Fetch recent scans
-  const fetchRecentScans = async () => {
+  const fetchRecentScans = useCallback(async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`http://localhost:8000/api/v1/scan/recent/label?page=${currentPage}&limit=${itemsPerPage}`, {
+      const response = await fetch(`${API_ENDPOINTS.RECENT_LABEL_SCANS}?page=${currentPage}&limit=${itemsPerPage}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -146,11 +142,11 @@ const LabelScan: React.FC = () => {
     } finally {
       setLoadingScans(false);
     }
-  };
+  }, [currentPage, itemsPerPage]);
 
   const fetchScanCountData = async (trackerCode: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/tracker/${trackerCode}/count`);
+      const response = await fetch(API_ENDPOINTS.TRACKER_COUNT(trackerCode));
       if (response.ok) {
         const data = await response.json();
         setScanCountData(data);
@@ -222,7 +218,7 @@ const LabelScan: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/scan/label/', {
+      const response = await fetch(API_ENDPOINTS.LABEL_SCAN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -323,7 +319,7 @@ const LabelScan: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/scan/label/', {
+      const response = await fetch(API_ENDPOINTS.LABEL_SCAN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QrCodeIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { useNavigate } from 'react-router-dom';
-import TruckProgress from '../../components/TruckProgress';
+import API_ENDPOINTS from '../../config/api';
 
 interface TrackerDetails {
   g_code?: string;
@@ -64,7 +63,6 @@ interface MultiSkuProgress {
 }
 
 const PackingScan: React.FC = () => {
-  const navigate = useNavigate();
   const trackerInputRef = useRef<HTMLInputElement>(null);
   const gCodeInputRef = useRef<HTMLInputElement>(null);
   const [trackerCode, setTrackerCode] = useState('');
@@ -102,7 +100,7 @@ const PackingScan: React.FC = () => {
   const fetchPlatformStats = async () => {
     try {
       setLoadingStats(true);
-      const response = await fetch('http://localhost:8000/api/v1/scan/statistics/platform?scan_type=packing', {
+      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS}?scan_type=packing`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +126,7 @@ const PackingScan: React.FC = () => {
   const fetchRecentScans = async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`http://localhost:8000/api/v1/scan/recent/packing?page=${currentPage}&limit=${itemsPerPage}`, {
+      const response = await fetch(`${API_ENDPOINTS.RECENT_PACKING_SCANS}?page=${currentPage}&limit=${itemsPerPage}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -157,7 +155,7 @@ const PackingScan: React.FC = () => {
 
   const fetchScanCountData = async (trackerCode: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/tracker/${trackerCode}/count`);
+      const response = await fetch(API_ENDPOINTS.TRACKER_COUNT(trackerCode));
       if (response.ok) {
         const data = await response.json();
         setScanCountData(data);
@@ -247,7 +245,7 @@ const PackingScan: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/scan/packing-dual/', {
+              const response = await fetch(API_ENDPOINTS.PACKING_DUAL_SCAN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -373,7 +371,7 @@ const PackingScan: React.FC = () => {
 
     try {
       // Call the packing details endpoint to get tracker details
-      const response = await fetch(`http://localhost:8000/api/v1/tracker/${trackerCode.trim()}/packing-details`, {
+              const response = await fetch(API_ENDPOINTS.TRACKER_PACKING_DETAILS(trackerCode.trim()), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

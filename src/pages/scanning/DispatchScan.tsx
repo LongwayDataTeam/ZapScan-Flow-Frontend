@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircleIcon, ExclamationTriangleIcon, TruckIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { useNavigate } from 'react-router-dom';
-import TruckProgress from '../../components/TruckProgress';
+import API_ENDPOINTS from '../../config/api';
 
 interface TrackerDetails {
   g_code?: string;
@@ -60,7 +59,6 @@ interface MultiSkuProgress {
 }
 
 const DispatchScan: React.FC = () => {
-  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [trackerCode, setTrackerCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,7 +92,7 @@ const DispatchScan: React.FC = () => {
   const fetchPlatformStats = async () => {
     try {
       setLoadingStats(true);
-      const response = await fetch('http://localhost:8000/api/v1/scan/statistics/platform?scan_type=dispatch', {
+      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS}?scan_type=dispatch`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +118,7 @@ const DispatchScan: React.FC = () => {
   const fetchRecentScans = async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`http://localhost:8000/api/v1/scan/recent/dispatch?page=${currentPage}&limit=${itemsPerPage}`, {
+      const response = await fetch(`${API_ENDPOINTS.RECENT_DISPATCH_SCANS}?page=${currentPage}&limit=${itemsPerPage}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -202,7 +200,7 @@ const DispatchScan: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/scan/dispatch/', {
+              const response = await fetch(API_ENDPOINTS.DISPATCH_SCAN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

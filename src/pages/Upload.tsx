@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CloudArrowUpIcon, DocumentTextIcon, CheckCircleIcon, TableCellsIcon, TrashIcon, ExclamationTriangleIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import TrackingStats from '../components/TrackingStats';
+import API_ENDPOINTS from '../config/api';
 
 interface TrackingStatsData {
   total_uploaded: number;
@@ -56,7 +57,7 @@ const Upload: React.FC = () => {
 
   const fetchUploadedTrackers = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/trackers/uploaded/');
+      const response = await fetch(API_ENDPOINTS.UPLOADED_TRACKERS);
       if (response.ok) {
         const data = await response.json();
         setUploadedTrackers(data.uploaded_trackers || []);
@@ -68,7 +69,7 @@ const Upload: React.FC = () => {
 
   const fetchTrackingStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/tracking/stats');
+      const response = await fetch(API_ENDPOINTS.TRACKING_STATS);
       if (response.ok) {
         const data = await response.json();
         setTrackingStats(data);
@@ -84,7 +85,7 @@ const Upload: React.FC = () => {
     setClearLoading(true);
     try {
       // Clear all data from local backend
-      const response = await fetch('http://localhost:8000/api/v1/system/clear-data/', {
+      const response = await fetch(API_ENDPOINTS.CLEAR_DATA, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +140,7 @@ const Upload: React.FC = () => {
       }
 
       // Upload to local backend
-      const localResponse = await fetch(`http://localhost:8000/api/v1/trackers/upload/?duplicate_handling=${duplicateHandling}`, {
+              const localResponse = await fetch(`${API_ENDPOINTS.UPLOAD_TRACKERS}?duplicate_handling=${duplicateHandling}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -235,7 +236,7 @@ const Upload: React.FC = () => {
       }
 
       // Upload to local backend
-      const localResponse = await fetch(`http://localhost:8000/api/v1/trackers/upload-detailed/?duplicate_handling=${duplicateHandling}`, {
+              const localResponse = await fetch(`${API_ENDPOINTS.UPLOAD_DETAILED_TRACKERS}?duplicate_handling=${duplicateHandling}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
