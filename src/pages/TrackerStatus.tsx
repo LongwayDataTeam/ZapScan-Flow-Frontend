@@ -57,7 +57,7 @@ interface TrackingStatsData {
 
 type StatusFilter = 'all' | 'label' | 'packing' | 'dispatch' | 'completed';
 
-const TrackerStatus: React.FC = () => {
+const TrackerStatusPage: React.FC = () => {
   const [trackers, setTrackers] = useState<TrackerStatus[]>([]);
   const [trackingStats, setTrackingStats] = useState<TrackingStatsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -438,4 +438,4 @@ const TrackerStatus: React.FC = () => {
   );
 };
 
-export default TrackerStatus; 
+export default TrackerStatusPage; 

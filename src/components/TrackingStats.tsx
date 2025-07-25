@@ -18,7 +18,7 @@ interface TrackingStatsProps {
   loading?: boolean;
 }
 
-const TrackingStats: React.FC<TrackingStatsProps> = ({ stats, loading = false }) => {
+const TrackingStatsComponent: React.FC<TrackingStatsProps> = ({ stats, loading = false }) => {
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4 border border-gray-100">
@@ -142,4 +142,4 @@ const TrackingStats: React.FC<TrackingStatsProps> = ({ stats, loading = false })
   );
 };
 
-export default TrackingStats; 
+export default TrackingStatsComponent; 
