@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "zapscan-frontend",
   "builds": [
     {
       "src": "package.json",
@@ -10,30 +9,14 @@
       }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://zapscan-lw-backend-v2-250725-477154991805.asia-south2.run.app/api/$1"
+      "source": "/api/(.*)",
+      "destination": "https://zapscan-lw-backend-v2-250725-477154991805.asia-south2.run.app/api/$1"
     },
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "/manifest.json",
-      "dest": "/manifest.json"
-    },
-    {
-      "src": "/sw.js",
-      "dest": "/sw.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
