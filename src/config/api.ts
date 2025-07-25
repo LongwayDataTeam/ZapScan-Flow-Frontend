@@ -37,8 +37,8 @@ const API_PATHS = {
 // Secure API service that doesn't expose backend URL
 class SecureAPIService {
   private static getBaseURL(): string {
-    // Use Vercel proxy to avoid CORS issues
-    return '/api/proxy';
+    // Use Vercel rewrite to proxy API calls
+    return '';
   }
 
   static getEndpoint(path: string): string {
