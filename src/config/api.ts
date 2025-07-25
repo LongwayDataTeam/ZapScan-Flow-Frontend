@@ -37,9 +37,8 @@ const API_PATHS = {
 // Secure API service that doesn't expose backend URL
 class SecureAPIService {
   private static getBaseURL(): string {
-    // Always use the production backend URL for now
-    // This ensures the app works in production
-    return 'https://zapscan-lw-backend-v2-250725-477154991805.asia-south2.run.app';
+    // Use Vercel proxy to avoid CORS issues
+    return '/api/proxy';
   }
 
   static getEndpoint(path: string): string {
