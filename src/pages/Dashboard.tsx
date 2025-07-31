@@ -18,6 +18,7 @@ interface DashboardStats {
   total_trackers: number;
   completed_trackers: number;
   in_progress_trackers: number;
+  pending_trackers: number;
   recent_products: any[];
 }
 
@@ -27,10 +28,12 @@ interface TrackingStatsData {
   packing_scanned: number;
   dispatch_scanned: number;
   completed: number;
+  pending: number;
   label_percentage: number;
   packing_percentage: number;
   dispatch_percentage: number;
   completion_percentage: number;
+  pending_percentage: number;
 }
 
 interface RecentActivity {
@@ -87,10 +90,12 @@ const Dashboard: React.FC = () => {
           packing_scanned: data.packing_scanned || 0,
           dispatch_scanned: data.dispatch_scanned || 0,
           completed: data.completed || 0,
+          pending: data.pending || 0,
           label_percentage: data.label_percentage || 0,
           packing_percentage: data.packing_percentage || 0,
           dispatch_percentage: data.dispatch_percentage || 0,
-          completion_percentage: data.completion_percentage || 0
+          completion_percentage: data.completion_percentage || 0,
+          pending_percentage: data.pending_percentage || 0
         };
         
         setTrackingStats(validatedData);
@@ -104,21 +109,27 @@ const Dashboard: React.FC = () => {
         packing_scanned: 0,
         dispatch_scanned: 0,
         completed: 0,
+        pending: 0,
         label_percentage: 0,
         packing_percentage: 0,
         dispatch_percentage: 0,
-        completion_percentage: 0
+        completion_percentage: 0,
+        pending_percentage: 0
       });
     }
   };
 
   const fetchRecentActivity = async () => {
     try {
-      // Fetch recent scans from all types
+      // Fetch recent scans from all types using the new generic endpoint
+      const labelUrl = `${API_ENDPOINTS.RECENT_SCANS}?scan_type=label&page=1&limit=5`;
+      const packingUrl = `${API_ENDPOINTS.RECENT_SCANS}?scan_type=packing&page=1&limit=5`;
+      const dispatchUrl = `${API_ENDPOINTS.RECENT_SCANS}?scan_type=dispatch&page=1&limit=5`;
+      
       const [labelResponse, packingResponse, dispatchResponse] = await Promise.all([
-        fetch(`${API_ENDPOINTS.RECENT_LABEL_SCANS}?page=1&limit=5`),
-        fetch(`${API_ENDPOINTS.RECENT_PACKING_SCANS}?page=1&limit=5`),
-        fetch(`${API_ENDPOINTS.RECENT_DISPATCH_SCANS}?page=1&limit=5`)
+        fetch(labelUrl),
+        fetch(packingUrl),
+        fetch(dispatchUrl)
       ]);
 
       const allActivities: RecentActivity[] = [];
@@ -128,6 +139,10 @@ const Dashboard: React.FC = () => {
         if (labelData.results && Array.isArray(labelData.results)) {
           allActivities.push(...labelData.results);
         }
+      } else {
+        console.error('Label response not ok:', labelResponse.status);
+        const errorText = await labelResponse.text();
+        console.error('Label error:', errorText);
       }
 
       if (packingResponse.ok) {
@@ -135,6 +150,10 @@ const Dashboard: React.FC = () => {
         if (packingData.results && Array.isArray(packingData.results)) {
           allActivities.push(...packingData.results);
         }
+      } else {
+        console.error('Packing response not ok:', packingResponse.status);
+        const errorText = await packingResponse.text();
+        console.error('Packing error:', errorText);
       }
 
       if (dispatchResponse.ok) {
@@ -142,6 +161,10 @@ const Dashboard: React.FC = () => {
         if (dispatchData.results && Array.isArray(dispatchData.results)) {
           allActivities.push(...dispatchData.results);
         }
+      } else {
+        console.error('Dispatch response not ok:', dispatchResponse.status);
+        const errorText = await dispatchResponse.text();
+        console.error('Dispatch error:', errorText);
       }
 
       // Sort by scan time (most recent first) and take top 6
@@ -152,6 +175,7 @@ const Dashboard: React.FC = () => {
           return 0; // If date parsing fails, keep original order
         }
       });
+      
       setRecentActivity(allActivities.slice(0, 6));
     } catch (error) {
       console.error('Error fetching recent activity:', error);
@@ -187,13 +211,16 @@ const Dashboard: React.FC = () => {
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'add-product':
-        window.location.href = '/upload';
+        window.location.href = '/products';
         break;
       case 'label-scan':
-        window.location.href = '/scan/label';
+        window.location.href = '/scanning/label';
         break;
       case 'tracker-status':
         window.location.href = '/tracker-status';
+        break;
+      case 'hold-shipments':
+        window.location.href = '/hold-shipments';
         break;
       default:
         console.log('Unknown action:', action);
@@ -241,7 +268,7 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="p-6">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
@@ -260,7 +287,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
@@ -315,7 +342,7 @@ const Dashboard: React.FC = () => {
 
         {/* Stats Grid - Moved to top for better hierarchy */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow-md p-4 border border-gray-100">
               <div className="flex items-center">
                 <CubeIcon className="h-6 w-6 text-blue-600 mr-3" />
@@ -355,6 +382,16 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-100">
+              <div className="flex items-center">
+                <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3" />
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Pending/Hold</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.pending_trackers || 0}</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -382,6 +419,12 @@ const Dashboard: React.FC = () => {
                   className="w-full bg-purple-600 text-white py-2 px-3 rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
                 >
                   View Tracker Status
+                </button>
+                <button 
+                  onClick={() => handleQuickAction('hold-shipments')}
+                  className="w-full bg-orange-600 text-white py-2 px-3 rounded-lg hover:bg-orange-700 transition-colors font-medium text-sm"
+                >
+                  View Hold Shipments
                 </button>
               </div>
             </div>

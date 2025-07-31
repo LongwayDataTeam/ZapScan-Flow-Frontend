@@ -18,14 +18,22 @@ const API_PATHS = {
   PACKING_SCAN: '/api/v1/scan/packing/',
   PACKING_DUAL_SCAN: '/api/v1/scan/packing-dual/',
   DISPATCH_SCAN: '/api/v1/scan/dispatch/',
+  PENDING_SHIPMENT: '/api/v1/scan/pending/',
+  UNHOLD_SHIPMENT: '/api/v1/scan/unhold/',
   
   // Recent Scans
-  RECENT_LABEL_SCANS: '/api/v1/scan/recent/label',
-  RECENT_PACKING_SCANS: '/api/v1/scan/recent/packing',
-  RECENT_DISPATCH_SCANS: '/api/v1/scan/recent/dispatch',
+  RECENT_LABEL_SCANS: '/api/v1/scans/recent/?scan_type=label',
+  RECENT_PACKING_SCANS: '/api/v1/scans/recent/?scan_type=packing',
+  RECENT_DISPATCH_SCANS: '/api/v1/scans/recent/?scan_type=dispatch',
+  RECENT_SCANS: '/api/v1/scans/recent/',
   
   // Statistics
   PLATFORM_STATS: '/api/v1/scan/statistics/platform',
+  
+  // Pending Shipments
+  PENDING_SHIPMENTS: '/api/v1/shipments/pending/',
+  PENDING_SHIPMENTS_COUNT: '/api/v1/shipments/pending/count',
+  ALL_HOLD_SHIPMENTS: '/api/v1/shipments/pending/all',
   
   // System
   CLEAR_DATA: '/api/v1/system/clear-data/',
@@ -37,7 +45,11 @@ const API_PATHS = {
 // Secure API service that doesn't expose backend URL
 class SecureAPIService {
   private static getBaseURL(): string {
-    // Use Vercel rewrite to proxy API calls
+    // In development, use the environment variable
+    if (process.env.NODE_ENV === 'development') {
+      return process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    }
+    // In production, use Vercel rewrite to proxy API calls
     return '';
   }
 
@@ -67,14 +79,22 @@ export const API_ENDPOINTS = {
   PACKING_SCAN: SecureAPIService.getEndpoint(API_PATHS.PACKING_SCAN),
   PACKING_DUAL_SCAN: SecureAPIService.getEndpoint(API_PATHS.PACKING_DUAL_SCAN),
   DISPATCH_SCAN: SecureAPIService.getEndpoint(API_PATHS.DISPATCH_SCAN),
+  PENDING_SHIPMENT: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENT),
+  UNHOLD_SHIPMENT: SecureAPIService.getEndpoint(API_PATHS.UNHOLD_SHIPMENT),
   
   // Recent Scans
   RECENT_LABEL_SCANS: SecureAPIService.getEndpoint(API_PATHS.RECENT_LABEL_SCANS),
   RECENT_PACKING_SCANS: SecureAPIService.getEndpoint(API_PATHS.RECENT_PACKING_SCANS),
   RECENT_DISPATCH_SCANS: SecureAPIService.getEndpoint(API_PATHS.RECENT_DISPATCH_SCANS),
+  RECENT_SCANS: SecureAPIService.getEndpoint(API_PATHS.RECENT_SCANS),
   
   // Statistics
   PLATFORM_STATS: SecureAPIService.getEndpoint(API_PATHS.PLATFORM_STATS),
+  
+  // Pending Shipments
+  PENDING_SHIPMENTS: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENTS),
+  PENDING_SHIPMENTS_COUNT: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENTS_COUNT),
+  ALL_HOLD_SHIPMENTS: SecureAPIService.getEndpoint(API_PATHS.ALL_HOLD_SHIPMENTS),
   
   // Tracker Details
   TRACKER_COUNT: (trackerCode: string) => SecureAPIService.getTrackerEndpoint(trackerCode, '/count'),

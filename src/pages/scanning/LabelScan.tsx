@@ -131,7 +131,9 @@ const LabelScan: React.FC = () => {
         setRecentScans(data.results || []);
         setTotalScans(data.count || 0);
       } else {
-        console.error('Failed to fetch recent label scans');
+        console.error('Failed to fetch recent label scans:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error details:', errorText);
         setRecentScans([]);
         setTotalScans(0);
       }
@@ -745,7 +747,7 @@ const LabelScan: React.FC = () => {
                     Tracking ID
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Courier
+                    Platform
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last Scan

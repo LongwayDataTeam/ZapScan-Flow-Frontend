@@ -22,7 +22,7 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <div className="bg-white text-gray-800 w-64 min-h-screen p-4 shadow-lg border-r border-gray-200">
+    <div className="bg-white text-gray-800 w-64 h-screen p-4 shadow-lg border-r border-gray-200 flex-shrink-0">
       <div className="mb-4">
         <div className="flex items-center space-x-3 mb-2">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircleIcon, ExclamationTriangleIcon, TruckIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import API_ENDPOINTS from '../../config/api';
+import PendingShipmentTab from '../../components/PendingShipmentTab';
 
 interface TrackerDetails {
   g_code?: string;
@@ -72,6 +73,9 @@ const DispatchScan: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   
+  // Pending shipment mode
+  const [isPendingMode, setIsPendingMode] = useState(false);
+  
   // Real data states
   const [platformStats, setPlatformStats] = useState<PlatformStats[]>([]);
   const [recentScans, setRecentScans] = useState<ScanRecord[]>([]);
@@ -118,7 +122,7 @@ const DispatchScan: React.FC = () => {
   const fetchRecentScans = async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`${API_ENDPOINTS.RECENT_DISPATCH_SCANS}?page=${currentPage}&limit=${itemsPerPage}`, {
+      const response = await fetch(`${API_ENDPOINTS.RECENT_SCANS}?scan_type=dispatch&page=${currentPage}&limit=${itemsPerPage}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -363,6 +367,14 @@ const DispatchScan: React.FC = () => {
     return total > 0 ? Math.round((scanned / total) * 100) : 0;
   };
 
+  const handleSwitchToPending = () => {
+    setIsPendingMode(true);
+  };
+
+  const handleSwitchToNormal = () => {
+    setIsPendingMode(false);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-7xl mx-auto">
@@ -371,8 +383,19 @@ const DispatchScan: React.FC = () => {
           <p className="text-gray-600">Scan tracker code for dispatch verification</p>
         </div>
 
-        {/* Left-Right Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Pending Shipment Tab */}
+        <PendingShipmentTab
+          scanType="dispatch"
+          onSwitchToPending={handleSwitchToPending}
+          onSwitchToNormal={handleSwitchToNormal}
+          isPendingMode={isPendingMode}
+        />
+
+        {/* Normal Scanning Interface - Only show when not in pending mode */}
+        {!isPendingMode && (
+          <>
+            {/* Left-Right Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Side - Scanning Interface */}
           <div className="space-y-6">
             {/* Scanning Interface */}
@@ -698,6 +721,8 @@ const DispatchScan: React.FC = () => {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

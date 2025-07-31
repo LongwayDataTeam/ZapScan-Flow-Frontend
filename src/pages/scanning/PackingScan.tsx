@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QrCodeIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import API_ENDPOINTS from '../../config/api';
+import PendingShipmentTab from '../../components/PendingShipmentTab';
 
 interface TrackerDetails {
   g_code?: string;
@@ -78,6 +79,9 @@ const PackingScan: React.FC = () => {
   const [scanCountData, setScanCountData] = useState<any>(null);
   const [scanStep, setScanStep] = useState<'tracker' | 'gcode'>('tracker');
   
+  // Pending shipment mode
+  const [isPendingMode, setIsPendingMode] = useState(false);
+  
   // Real data states
   const [platformStats, setPlatformStats] = useState<PlatformStats[]>([]);
   const [recentScans, setRecentScans] = useState<ScanRecord[]>([]);
@@ -126,7 +130,7 @@ const PackingScan: React.FC = () => {
   const fetchRecentScans = async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`${API_ENDPOINTS.RECENT_PACKING_SCANS}?page=${currentPage}&limit=${itemsPerPage}`, {
+      const response = await fetch(`${API_ENDPOINTS.RECENT_SCANS}?scan_type=packing&page=${currentPage}&limit=${itemsPerPage}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -522,6 +526,14 @@ const PackingScan: React.FC = () => {
     return total > 0 ? Math.round((scanned / total) * 100) : 0;
   };
 
+  const handleSwitchToPending = () => {
+    setIsPendingMode(true);
+  };
+
+  const handleSwitchToNormal = () => {
+    setIsPendingMode(false);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-7xl mx-auto">
@@ -530,373 +542,386 @@ const PackingScan: React.FC = () => {
           <p className="text-gray-600">Scan tracker code and G-Code for packing verification</p>
         </div>
 
-        {/* Left-Right Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Side - Scanning Interface */}
-          <div className="space-y-6">
-            {/* Scanning Interface */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <QrCodeIcon className="w-8 h-8 text-green-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Packing Station</h2>
-                <p className="text-gray-600">Scan tracker and G-Code</p>
-              </div>
+        {/* Pending Shipment Tab */}
+        <PendingShipmentTab
+          scanType="packing"
+          onSwitchToPending={handleSwitchToPending}
+          onSwitchToNormal={handleSwitchToNormal}
+          isPendingMode={isPendingMode}
+        />
 
-              {/* Step Indicator */}
-              <div className="mb-6">
-                <div className="flex items-center justify-center space-x-4">
-                  <div className={`flex items-center ${scanStep === 'tracker' ? 'text-blue-600' : 'text-gray-400'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                      scanStep === 'tracker' ? 'border-blue-600 bg-blue-100' : 'border-gray-300'
-                    }`}>
-                      1
+        {/* Normal Scanning Interface - Only show when not in pending mode */}
+        {!isPendingMode && (
+          <>
+            {/* Left-Right Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Side - Scanning Interface */}
+              <div className="space-y-6">
+                {/* Scanning Interface */}
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <QrCodeIcon className="w-8 h-8 text-green-600" />
                     </div>
-                    <span className="ml-2 text-sm font-medium">Tracker</span>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Packing Station</h2>
+                    <p className="text-gray-600">Scan tracker and G-Code</p>
                   </div>
-                  <div className="w-8 h-1 bg-gray-300"></div>
-                  <div className={`flex items-center ${scanStep === 'gcode' ? 'text-blue-600' : 'text-gray-400'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                      scanStep === 'gcode' ? 'border-blue-600 bg-blue-100' : 'border-gray-300'
-                    }`}>
-                      2
+
+                  {/* Step Indicator */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-center space-x-4">
+                      <div className={`flex items-center ${scanStep === 'tracker' ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                          scanStep === 'tracker' ? 'border-blue-600 bg-blue-100' : 'border-gray-300'
+                        }`}>
+                          1
+                        </div>
+                        <span className="ml-2 text-sm font-medium">Tracker</span>
+                      </div>
+                      <div className="w-8 h-1 bg-gray-300"></div>
+                      <div className={`flex items-center ${scanStep === 'gcode' ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                          scanStep === 'gcode' ? 'border-blue-600 bg-blue-100' : 'border-gray-300'
+                        }`}>
+                          2
+                        </div>
+                        <span className="ml-2 text-sm font-medium">G-Code</span>
+                      </div>
                     </div>
-                    <span className="ml-2 text-sm font-medium">G-Code</span>
                   </div>
-                </div>
-              </div>
 
-              {/* Tracker Code Input */}
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Tracker Code
-                </label>
-                <input
-                  ref={trackerInputRef}
-                  type="text"
-                  value={trackerCode}
-                  onChange={handleTrackerInputChange}
-                  onKeyPress={handleKeyPress}
-                  placeholder="SCAN TRACKER CODE (AUTO UPPERCASE)"
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-uppercase"
-                  disabled={loading}
-                  autoFocus
-                />
-              </div>
+                  {/* Tracker Code Input */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Tracker Code
+                    </label>
+                    <input
+                      ref={trackerInputRef}
+                      type="text"
+                      value={trackerCode}
+                      onChange={handleTrackerInputChange}
+                      onKeyPress={handleKeyPress}
+                      placeholder="SCAN TRACKER CODE (AUTO UPPERCASE)"
+                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-uppercase"
+                      disabled={loading}
+                      autoFocus
+                    />
+                  </div>
 
-              {/* Multi-SKU Progress Indicator */}
-              {multiSkuProgress && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-blue-800">Multi-SKU Order Progress</span>
-                    <span className="text-xs text-blue-600">
-                      {multiSkuProgress.scanned}/{multiSkuProgress.total} SKUs
-                    </span>
-                  </div>
-                  <div className="w-full bg-blue-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${getProgressPercentage(multiSkuProgress.scanned, multiSkuProgress.total)}%` }}
-                    ></div>
-                  </div>
-                  <div className="mt-2 text-xs text-blue-700">
-                    Tracking ID: <span className="font-mono">{multiSkuProgress.trackingId}</span>
-                    <br />
-                    Remaining: <span className="font-medium">{multiSkuProgress.remaining} SKU(s)</span>
-                    {multiSkuProgress.selectedSkuGCode && (
-                      <>
+                  {/* Multi-SKU Progress Indicator */}
+                  {multiSkuProgress && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-blue-800">Multi-SKU Order Progress</span>
+                        <span className="text-xs text-blue-600">
+                          {multiSkuProgress.scanned}/{multiSkuProgress.total} SKUs
+                        </span>
+                      </div>
+                      <div className="w-full bg-blue-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${getProgressPercentage(multiSkuProgress.scanned, multiSkuProgress.total)}%` }}
+                        ></div>
+                      </div>
+                      <div className="mt-2 text-xs text-blue-700">
+                        Tracking ID: <span className="font-mono">{multiSkuProgress.trackingId}</span>
                         <br />
-                        Selected SKU: <span className="font-mono">{multiSkuProgress.selectedSkuGCode}</span>
-                        {multiSkuProgress.selectedSkuEanCode && (
-                          <> (EAN: {multiSkuProgress.selectedSkuEanCode})</>
+                        Remaining: <span className="font-medium">{multiSkuProgress.remaining} SKU(s)</span>
+                        {multiSkuProgress.selectedSkuGCode && (
+                          <>
+                            <br />
+                            Selected SKU: <span className="font-mono">{multiSkuProgress.selectedSkuGCode}</span>
+                            {multiSkuProgress.selectedSkuEanCode && (
+                              <> (EAN: {multiSkuProgress.selectedSkuEanCode})</>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+                      </div>
+                    </div>
+                  )}
 
-              {/* G-Code Input */}
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  G-Code
-                </label>
-                <input
-                  ref={gCodeInputRef}
-                  type="text"
-                  value={gCode}
-                  onChange={handleGCodeInputChange}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Scan or enter G-Code"
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={loading || scanStep === 'tracker'}
-                />
+                  {/* G-Code Input */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      G-Code
+                    </label>
+                    <input
+                      ref={gCodeInputRef}
+                      type="text"
+                      value={gCode}
+                      onChange={handleGCodeInputChange}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Scan or enter G-Code"
+                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loading || scanStep === 'tracker'}
+                    />
+                  </div>
+
+                  <button
+                    onClick={resetForm}
+                    className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  >
+                    Reset
+                  </button>
+
+                  {/* Success/Error Messages */}
+                  {success && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center">
+                        <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
+                        <span className="text-sm text-green-800 font-medium">
+                          {selectedSkuName ? 
+                            `Packing scan completed successfully! SKU "${selectedSkuName}" ticked.` :
+                            'Packing scan completed successfully!'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center">
+                        <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-2" />
+                        <span className="text-sm text-red-800">{error}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <button
-                onClick={resetForm}
-                className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Reset
-              </button>
-
-              {/* Success/Error Messages */}
-              {success && (
-                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
-                    <span className="text-sm text-green-800 font-medium">
-                      {selectedSkuName ? 
-                        `Packing scan completed successfully! SKU "${selectedSkuName}" ticked.` :
-                        'Packing scan completed successfully!'
-                      }
-                    </span>
+              {/* Right Side - Platform Statistics */}
+              <div className="space-y-6">
+                {/* Platform Statistics */}
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Platform Statistics</h3>
+                    <div className="text-sm text-gray-600">
+                      {loadingStats ? 'Loading...' : `${platformStats.length} couriers`}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Courier
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Total
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Scanned
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Pending
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Multi-SKU
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Single-SKU
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Progress
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {platformStats.map((stat, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {stat.courier}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {stat.total}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                              {stat.scanned}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                              {stat.pending}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm">
+                              <div className="text-center">
+                                <div className="text-green-600 font-medium">{stat.multi_sku_scanned || 0}</div>
+                                <div className="text-red-600 text-xs">{stat.multi_sku_pending || 0}</div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm">
+                              <div className="text-center">
+                                <div className="text-green-600 font-medium">{stat.single_sku_scanned || 0}</div>
+                                <div className="text-red-600 text-xs">{stat.single_sku_pending || 0}</div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full" 
+                                    style={{ width: `${getProgressPercentage(stat.scanned, stat.total)}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs text-gray-500">
+                                  {getProgressPercentage(stat.scanned, stat.total)}%
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              )}
-
-              {error && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-2" />
-                    <span className="text-sm text-red-800">{error}</span>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
-          </div>
 
-          {/* Right Side - Platform Statistics */}
-          <div className="space-y-6">
-            {/* Platform Statistics */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Platform Statistics</h3>
-                <div className="text-sm text-gray-600">
-                  {loadingStats ? 'Loading...' : `${platformStats.length} couriers`}
+            {/* Full Width Instructions */}
+            <div className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-8 mt-8">
+              <h3 className="text-lg font-semibold text-blue-800 mb-4">Instructions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-blue-700">
+                <div className="space-y-2">
+                  <p className="font-medium">1. Scan Tracker Code</p>
+                  <p className="text-xs">Scan the tracker code - system will auto-verify and show details</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">2. Auto-Show Product</p>
+                  <p className="text-xs">System automatically displays expected G-Code/EAN for verification</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">3. Scan G-Code/EAN</p>
+                  <p className="text-xs">Scan the product G-Code or EAN - system will auto-validate</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">4. Packing Complete</p>
+                  <p className="text-xs">System verifies codes match and completes packing scan automatically</p>
                 </div>
               </div>
+            </div>
+
+            {/* Recent Scanning Data - Full Width */}
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Scanning Data</h3>
+                <div className="text-sm text-gray-600">
+                  {loadingScans ? 'Loading...' : `Showing ${startIndex + 1}-${Math.min(endIndex, totalScans)} of ${totalScans} scans`}
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tracking ID
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Platform
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Last Scan
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Distribution
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        City
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Courier
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Scanned
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pending
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Multi-SKU
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Single-SKU
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Progress
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Time
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {platformStats.map((stat, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {stat.courier}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {stat.total}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                          {stat.scanned}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                          {stat.pending}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <div className="text-center">
-                            <div className="text-green-600 font-medium">{stat.multi_sku_scanned || 0}</div>
-                            <div className="text-red-600 text-xs">{stat.multi_sku_pending || 0}</div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <div className="text-center">
-                            <div className="text-green-600 font-medium">{stat.single_sku_scanned || 0}</div>
-                            <div className="text-red-600 text-xs">{stat.single_sku_pending || 0}</div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full" 
-                                style={{ width: `${getProgressPercentage(stat.scanned, stat.total)}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {getProgressPercentage(stat.scanned, stat.total)}%
-                            </span>
-                          </div>
+                    {loadingScans ? (
+                      <tr>
+                        <td colSpan={9} className="px-3 py-4 text-center text-sm text-gray-500">
+                          Loading recent scans...
                         </td>
                       </tr>
-                    ))}
+                    ) : recentScans.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-3 py-4 text-center text-sm text-gray-500">
+                          No recent scans found
+                        </td>
+                      </tr>
+                    ) : (
+                      recentScans.slice(startIndex, endIndex).map((scan) => (
+                        <tr key={scan.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {scan.tracking_id}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scan.platform}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getScanColor(scan.last_scan)}`}>
+                              {scan.last_scan}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(scan.scan_status)}`}>
+                              {scan.scan_status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scan.distribution}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ₹{scan.amount}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scan.buyer_city}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scan.courier}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {scan.scan_time}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Full Width Instructions */}
-        <div className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-8 mt-8">
-          <h3 className="text-lg font-semibold text-blue-800 mb-4">Instructions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-blue-700">
-            <div className="space-y-2">
-              <p className="font-medium">1. Scan Tracker Code</p>
-              <p className="text-xs">Scan the tracker code - system will auto-verify and show details</p>
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-700">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1 || loadingScans}
+                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    <ChevronLeftIcon className="h-4 w-4 mr-1" />
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages || loadingScans}
+                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    Next
+                    <ChevronRightIcon className="h-4 w-4 ml-1" />
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <p className="font-medium">2. Auto-Show Product</p>
-              <p className="text-xs">System automatically displays expected G-Code/EAN for verification</p>
-            </div>
-            <div className="space-y-2">
-              <p className="font-medium">3. Scan G-Code/EAN</p>
-              <p className="text-xs">Scan the product G-Code or EAN - system will auto-validate</p>
-            </div>
-            <div className="space-y-2">
-              <p className="font-medium">4. Packing Complete</p>
-              <p className="text-xs">System verifies codes match and completes packing scan automatically</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Scanning Data - Full Width */}
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Scanning Data</h3>
-            <div className="text-sm text-gray-600">
-              {loadingScans ? 'Loading...' : `Showing ${startIndex + 1}-${Math.min(endIndex, totalScans)} of ${totalScans} scans`}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tracking ID
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Platform
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Scan
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Distribution
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    City
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Courier
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loadingScans ? (
-                  <tr>
-                    <td colSpan={9} className="px-3 py-4 text-center text-sm text-gray-500">
-                      Loading recent scans...
-                    </td>
-                  </tr>
-                ) : recentScans.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-3 py-4 text-center text-sm text-gray-500">
-                      No recent scans found
-                    </td>
-                  </tr>
-                ) : (
-                  recentScans.slice(startIndex, endIndex).map((scan) => (
-                    <tr key={scan.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {scan.tracking_id}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {scan.platform}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getScanColor(scan.last_scan)}`}>
-                          {scan.last_scan}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(scan.scan_status)}`}>
-                          {scan.scan_status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {scan.distribution}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₹{scan.amount}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {scan.buyer_city}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {scan.courier}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {scan.scan_time}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-700">
-              Page {currentPage} of {totalPages}
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1 || loadingScans}
-                className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-              >
-                <ChevronLeftIcon className="h-4 w-4 mr-1" />
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages || loadingScans}
-                className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-              >
-                Next
-                <ChevronRightIcon className="h-4 w-4 ml-1" />
-              </button>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
