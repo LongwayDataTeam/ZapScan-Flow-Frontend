@@ -2,18 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QrCodeIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import API_ENDPOINTS from '../config/api';
 
-interface PendingShipmentTabProps {
+interface CancelledShipmentTabProps {
   scanType: 'packing' | 'dispatch';
-  onSwitchToPending: () => void;
+  onSwitchToCancelled: () => void;
   onSwitchToNormal: () => void;
-  isPendingMode: boolean;
+  isCancelledMode: boolean;
 }
 
 interface RecentActivity {
   id: string;
   tracking_id: string;
   platform: string;
-  scan_stage: 'Label' | 'Packing' | 'Dispatch' | 'Pending';
+  scan_stage: 'Label' | 'Packing' | 'Dispatch' | 'Cancelled';
   current_stage: 'Label' | 'Packing' | 'Dispatch' | 'Pending' | 'Cancelled';
   current_status: 'Success' | 'Error' | 'Pending' | 'Cancelled';
   scan_time: string;
@@ -23,11 +23,11 @@ interface RecentActivity {
   distribution: 'Single SKU' | 'Multi SKU';
 }
 
-const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
+const CancelledShipmentTab: React.FC<CancelledShipmentTabProps> = ({
   scanType,
-  onSwitchToPending,
+  onSwitchToCancelled,
   onSwitchToNormal,
-  isPendingMode
+  isCancelledMode
 }) => {
   const [trackerCode, setTrackerCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
   const fetchRecentActivities = async () => {
     try {
       setLoadingActivities(true);
-      const response = await fetch(`${API_ENDPOINTS.PENDING_SHIPMENTS}?scan_type=${scanType}`, {
+      const response = await fetch(`${API_ENDPOINTS.CANCELLED_SHIPMENTS}?scan_type=${scanType}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -58,28 +58,49 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
       if (response.ok) {
         const data = await response.json();
         // Transform the data to match our interface
-        const transformedActivities = (data.pending_shipments || []).map((shipment: any) => ({
-          id: shipment.tracker_code || 'unknown',
-          tracking_id: shipment.tracking_id || 'unknown',
-          platform: shipment.details?.channel_name || 'Unknown',
-          scan_stage: shipment.hold_stage || 'Unknown',
-          current_stage: shipment.hold_stage || 'Unknown',
-          current_status: 'Pending',
-          scan_time: shipment.hold_time || 'Unknown',
-          amount: shipment.details?.amount || 0,
-          buyer_city: shipment.details?.buyer_city || 'Unknown',
-          courier: shipment.details?.courier || 'Unknown',
-          distribution: 'Single SKU' // Default, can be enhanced later
-        }));
+        const transformedActivities = (data.cancelled_shipments || []).map((shipment: any) => {
+          // Parse the cancellation stage to extract previous and current stages
+          const cancellationStage = shipment.cancellation_stage || 'Unknown';
+          let scanStage = 'Unknown';
+          let currentStage = 'Cancelled';
+          
+          if (cancellationStage.includes('Post-Dispatch')) {
+            scanStage = 'Dispatch';
+            currentStage = 'Cancelled';
+          } else if (cancellationStage.includes('Post-Packing')) {
+            scanStage = 'Packing';
+            currentStage = 'Cancelled';
+          } else if (cancellationStage.includes('Post-Label')) {
+            scanStage = 'Label';
+            currentStage = 'Cancelled';
+          } else if (cancellationStage.includes('Pre-Processing')) {
+            scanStage = 'Pre-Processing';
+            currentStage = 'Cancelled';
+          }
+          
+          return {
+            id: shipment.tracker_code || 'unknown',
+            tracking_id: shipment.tracking_id || 'unknown',
+            platform: shipment.details?.channel_name || 'Unknown',
+            scan_stage: scanStage,
+            current_stage: currentStage,
+            current_status: 'Cancelled',
+            scan_time: shipment.cancellation_time || 'Unknown',
+            amount: shipment.details?.amount || 0,
+            buyer_city: shipment.details?.buyer_city || 'Unknown',
+            courier: shipment.details?.courier || 'Unknown',
+            distribution: 'Single SKU' // Default, can be enhanced later
+          };
+        });
         setRecentActivities(transformedActivities);
         setTotalActivities(data.count || 0);
       } else {
-        console.error('Failed to fetch pending shipments');
+        console.error('Failed to fetch cancelled shipments');
         setRecentActivities([]);
         setTotalActivities(0);
       }
     } catch (error) {
-      console.error('Error fetching pending shipments:', error);
+      console.error('Error fetching cancelled shipments:', error);
       setRecentActivities([]);
       setTotalActivities(0);
     } finally {
@@ -102,13 +123,13 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
     setError('');
 
     try {
-      const response = await fetch(API_ENDPOINTS.PENDING_SHIPMENT, {
+      const response = await fetch(API_ENDPOINTS.CANCELLED_SHIPMENT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tracking_id: trackerCode.trim(),
+          tracker_code: trackerCode.trim(),
           scan_type: scanType
         }),
       });
@@ -130,9 +151,7 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
           }
         }, 100);
       } else {
-        // Ensure error is a string
-        const errorMessage = data.detail || data.message || data.error || 'Failed to put shipment on hold';
-        setError(typeof errorMessage === 'string' ? errorMessage : 'Failed to put shipment on hold');
+        setError(data.detail || 'Failed to cancel shipment');
       }
     } catch (error) {
       setError('Network error. Please try again.');
@@ -180,6 +199,7 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
       case 'Dispatch': return 'bg-purple-100 text-purple-800';
       case 'Pending': return 'bg-orange-100 text-orange-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
+      case 'Pre-Processing': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -187,28 +207,28 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+      <div className="bg-red-50 rounded-lg p-4 border border-red-200">
         <div className="flex items-center space-x-3 mb-2">
-          <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-            <span className="text-lg">⏸</span>
+          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+            <span className="text-lg">❌</span>
           </div>
-          <h2 className="text-lg font-semibold text-orange-800">Active Pending Shipment Management</h2>
-            </div>
-        <p className="text-sm text-orange-700">
-          Put shipments on hold when they cannot be processed immediately. Scan the tracker code to mark as pending.
-              </p>
-            </div>
+          <h2 className="text-lg font-semibold text-red-800">Active Cancelled Shipment Management</h2>
+        </div>
+        <p className="text-sm text-red-700">
+          Cancel shipments that cannot be fulfilled. Scan the tracker code to mark as cancelled.
+        </p>
+      </div>
 
       {/* Scanning Interface */}
       <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <QrCodeIcon className="w-8 h-8 text-orange-600" />
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <QrCodeIcon className="w-8 h-8 text-red-600" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Pending Scan Station</h3>
-          <p className="text-gray-600">Scan tracker code to put shipment on hold</p>
-          </div>
-          
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Cancellation Scan Station</h3>
+          <p className="text-gray-600">Scan tracker code to cancel shipment</p>
+        </div>
+
         {/* Input Field */}
         <div className="mb-4">
           <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -221,19 +241,19 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             placeholder="SCAN TRACKER CODE (AUTO UPPERCASE)"
-            className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono text-uppercase"
+            className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 font-mono text-uppercase"
             disabled={loading}
             autoFocus
           />
         </div>
-        
+
         {/* Success/Error Messages */}
         {success && (
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center">
               <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
               <span className="text-sm text-green-800 font-medium">
-                Shipment successfully put on hold!
+                Shipment successfully cancelled!
               </span>
             </div>
           </div>
@@ -253,19 +273,19 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg shadow-md p-4 border border-gray-100">
           <div className="flex items-center justify-between">
-              <div>
-              <p className="text-sm font-medium text-gray-600">Active Pending</p>
-              <p className="text-2xl font-bold text-orange-600">{totalActivities}</p>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Active Cancelled</p>
+              <p className="text-2xl font-bold text-red-600">{totalActivities}</p>
             </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-              <span className="text-lg">⏸</span>
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+              <span className="text-lg">❌</span>
             </div>
           </div>
         </div>
         
         <div className="bg-white rounded-lg shadow-md p-4 border border-gray-100">
           <div className="flex items-center justify-between">
-              <div>
+            <div>
               <p className="text-sm font-medium text-gray-600">Today's Active</p>
               <p className="text-2xl font-bold text-blue-600">
                 {recentActivities.filter(activity => 
@@ -275,13 +295,13 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
               <span className="text-lg">📅</span>
-                  </div>
-                </div>
-              </div>
-              
+            </div>
+          </div>
+        </div>
+        
         <div className="bg-white rounded-lg shadow-md p-4 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
+          <div className="flex items-center justify-between">
+            <div>
               <p className="text-sm font-medium text-gray-600">Multi-SKU Active</p>
               <p className="text-2xl font-bold text-purple-600">
                 {recentActivities.filter(activity => activity.distribution === 'Multi SKU').length}
@@ -290,55 +310,55 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
             <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
               <span className="text-lg">📦</span>
             </div>
-                </div>
-              </div>
-            </div>
-            
+          </div>
+        </div>
+      </div>
+
       {/* Recent Activities */}
       <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Active Pending Activities</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Active Cancelled Activities</h3>
           <div className="text-sm text-gray-600">
-            {loadingActivities ? 'Loading...' : `Showing ${startIndex + 1}-${Math.min(startIndex + itemsPerPage, totalActivities)} of ${totalActivities} active holds`}
+            {loadingActivities ? 'Loading...' : `Showing ${startIndex + 1}-${Math.min(startIndex + itemsPerPage, totalActivities)} of ${totalActivities} active cancellations`}
           </div>
-                </div>
+        </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tracking ID
-                    </th>
+                  Tracking ID
+                </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Platform
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Scan Stage
-                    </th>
+                </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Current Stage
-                    </th>
+                  Current Stage
+                </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Current Status
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Distribution
-                    </th>
+                </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
-                    </th>
+                </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   City
-                    </th>
+                </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Courier
-                    </th>
+                </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Time
-                    </th>
-                  </tr>
-                </thead>
+                </th>
+              </tr>
+            </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loadingActivities ? (
                 <tr>
@@ -349,10 +369,10 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
               ) : recentActivities.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-3 py-4 text-center text-sm text-gray-500">
-                    No active pending shipments found
-                      </td>
-                    </tr>
-                  ) : (
+                    No active cancelled shipments found
+                  </td>
+                </tr>
+              ) : (
                 recentActivities.map((activity) => (
                   <tr key={activity.id} className="hover:bg-gray-50">
                     <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -393,10 +413,10 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
                     </td>
                   </tr>
                 ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Pagination */}
         <div className="flex items-center justify-between mt-4">
@@ -427,4 +447,4 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
   );
 };
 
-export default PendingShipmentTab; 
+export default CancelledShipmentTab; 

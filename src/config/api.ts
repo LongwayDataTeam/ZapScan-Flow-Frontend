@@ -18,6 +18,7 @@ const API_PATHS = {
   PACKING_SCAN: '/api/v1/scan/packing/',
   PACKING_DUAL_SCAN: '/api/v1/scan/packing-dual/',
   DISPATCH_SCAN: '/api/v1/scan/dispatch/',
+  CANCELLED_SHIPMENT: '/api/v1/scan/cancelled/',
   PENDING_SHIPMENT: '/api/v1/scan/pending/',
   UNHOLD_SHIPMENT: '/api/v1/scan/unhold/',
   
@@ -34,6 +35,10 @@ const API_PATHS = {
   PENDING_SHIPMENTS: '/api/v1/shipments/pending/',
   PENDING_SHIPMENTS_COUNT: '/api/v1/shipments/pending/count',
   ALL_HOLD_SHIPMENTS: '/api/v1/shipments/pending/all',
+  
+  // Cancelled Shipments
+  CANCELLED_SHIPMENTS: '/api/v1/shipments/cancelled/',
+  CANCELLED_SHIPMENTS_COUNT: '/api/v1/shipments/cancelled/count',
   
   // System
   CLEAR_DATA: '/api/v1/system/clear-data/',
@@ -79,6 +84,7 @@ export const API_ENDPOINTS = {
   PACKING_SCAN: SecureAPIService.getEndpoint(API_PATHS.PACKING_SCAN),
   PACKING_DUAL_SCAN: SecureAPIService.getEndpoint(API_PATHS.PACKING_DUAL_SCAN),
   DISPATCH_SCAN: SecureAPIService.getEndpoint(API_PATHS.DISPATCH_SCAN),
+  CANCELLED_SHIPMENT: SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENT),
   PENDING_SHIPMENT: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENT),
   UNHOLD_SHIPMENT: SecureAPIService.getEndpoint(API_PATHS.UNHOLD_SHIPMENT),
   
@@ -95,6 +101,10 @@ export const API_ENDPOINTS = {
   PENDING_SHIPMENTS: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENTS),
   PENDING_SHIPMENTS_COUNT: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENTS_COUNT),
   ALL_HOLD_SHIPMENTS: SecureAPIService.getEndpoint(API_PATHS.ALL_HOLD_SHIPMENTS),
+  
+  // Cancelled Shipments
+  CANCELLED_SHIPMENTS: SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENTS),
+  CANCELLED_SHIPMENTS_COUNT: SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENTS_COUNT),
   
   // Tracker Details
   TRACKER_COUNT: (trackerCode: string) => SecureAPIService.getTrackerEndpoint(trackerCode, '/count'),

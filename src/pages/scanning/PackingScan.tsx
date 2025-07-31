@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QrCodeIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import API_ENDPOINTS from '../../config/api';
 import PendingShipmentTab from '../../components/PendingShipmentTab';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 interface TrackerDetails {
   g_code?: string;
@@ -79,8 +80,16 @@ const PackingScan: React.FC = () => {
   const [scanCountData, setScanCountData] = useState<any>(null);
   const [scanStep, setScanStep] = useState<'tracker' | 'gcode'>('tracker');
   
-  // Pending shipment mode
-  const [isPendingMode, setIsPendingMode] = useState(false);
+  // Tab management - Only Normal and Pending for Packing
+  const [activeTab, setActiveTab] = useState<'normal' | 'pending'>('normal');
+  
+  // Confirmation modal state
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationConfig, setConfirmationConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   
   // Real data states
   const [platformStats, setPlatformStats] = useState<PlatformStats[]>([]);
@@ -171,13 +180,11 @@ const PackingScan: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    fetchPlatformStats();
-  }, []);
-
-  // Fetch recent scans when page changes
-  useEffect(() => {
-    fetchRecentScans();
-  }, [currentPage]);
+    if (activeTab === 'normal') {
+      fetchPlatformStats();
+      fetchRecentScans();
+    }
+  }, [currentPage, activeTab]);
 
   // Auto-clear timer
   useEffect(() => {
@@ -527,11 +534,25 @@ const PackingScan: React.FC = () => {
   };
 
   const handleSwitchToPending = () => {
-    setIsPendingMode(true);
+    setConfirmationConfig({
+      title: 'Switch to Pending Shipment',
+      message: 'Are you sure you want to switch to Pending Shipment mode? This will allow you to put shipments on hold.',
+      onConfirm: () => {
+        setActiveTab('pending');
+        setShowConfirmation(false);
+        setConfirmationConfig(null);
+      }
+    });
+    setShowConfirmation(true);
   };
 
   const handleSwitchToNormal = () => {
-    setIsPendingMode(false);
+    setActiveTab('normal');
+  };
+
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
+    setConfirmationConfig(null);
   };
 
   return (
@@ -539,19 +560,44 @@ const PackingScan: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Packing Scan</h1>
-          <p className="text-gray-600">Scan tracker code and G-Code for packing verification</p>
+          <p className="text-gray-600">Scan tracker and G-code for packing verification</p>
         </div>
 
-        {/* Pending Shipment Tab */}
-        <PendingShipmentTab
-          scanType="packing"
-          onSwitchToPending={handleSwitchToPending}
-          onSwitchToNormal={handleSwitchToNormal}
-          isPendingMode={isPendingMode}
-        />
+        {/* Tab Navigation - Only 2 tabs for Packing */}
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 mb-8">
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('normal')}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'normal'
+                  ? 'bg-white text-green-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <QrCodeIcon className="w-5 h-5" />
+                <span>Normal Scan</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={handleSwitchToPending}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'pending'
+                  ? 'bg-white text-orange-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <span className="text-lg">⏸</span>
+                <span>Pending Shipment</span>
+              </div>
+            </button>
+          </div>
+        </div>
 
-        {/* Normal Scanning Interface - Only show when not in pending mode */}
-        {!isPendingMode && (
+        {/* Tab Content */}
+        {activeTab === 'normal' && (
           <>
             {/* Left-Right Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -564,30 +610,7 @@ const PackingScan: React.FC = () => {
                       <QrCodeIcon className="w-8 h-8 text-green-600" />
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Packing Station</h2>
-                    <p className="text-gray-600">Scan tracker and G-Code</p>
-                  </div>
-
-                  {/* Step Indicator */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-center space-x-4">
-                      <div className={`flex items-center ${scanStep === 'tracker' ? 'text-blue-600' : 'text-gray-400'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                          scanStep === 'tracker' ? 'border-blue-600 bg-blue-100' : 'border-gray-300'
-                        }`}>
-                          1
-                        </div>
-                        <span className="ml-2 text-sm font-medium">Tracker</span>
-                      </div>
-                      <div className="w-8 h-1 bg-gray-300"></div>
-                      <div className={`flex items-center ${scanStep === 'gcode' ? 'text-blue-600' : 'text-gray-400'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                          scanStep === 'gcode' ? 'border-blue-600 bg-blue-100' : 'border-gray-300'
-                        }`}>
-                          2
-                        </div>
-                        <span className="ml-2 text-sm font-medium">G-Code</span>
-                      </div>
-                    </div>
+                    <p className="text-gray-600">Scan tracker and G-code for packing</p>
                   </div>
 
                   {/* Tracker Code Input */}
@@ -608,22 +631,39 @@ const PackingScan: React.FC = () => {
                     />
                   </div>
 
+                  {/* G-Code Input */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      G-Code
+                    </label>
+                    <input
+                      ref={gCodeInputRef}
+                      type="text"
+                      value={gCode}
+                      onChange={handleGCodeInputChange}
+                      onKeyPress={handleKeyPress}
+                      placeholder="SCAN G-CODE (AUTO UPPERCASE)"
+                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-uppercase"
+                      disabled={loading}
+                    />
+                  </div>
+
                   {/* Multi-SKU Progress Indicator */}
                   {multiSkuProgress && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-blue-800">Multi-SKU Order Progress</span>
-                        <span className="text-xs text-blue-600">
+                        <span className="text-sm font-medium text-green-800">Multi-SKU Order Progress</span>
+                        <span className="text-xs text-green-600">
                           {multiSkuProgress.scanned}/{multiSkuProgress.total} SKUs
                         </span>
                       </div>
-                      <div className="w-full bg-blue-200 rounded-full h-2">
+                      <div className="w-full bg-green-200 rounded-full h-2">
                         <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                          className="bg-green-600 h-2 rounded-full transition-all duration-300" 
                           style={{ width: `${getProgressPercentage(multiSkuProgress.scanned, multiSkuProgress.total)}%` }}
                         ></div>
                       </div>
-                      <div className="mt-2 text-xs text-blue-700">
+                      <div className="mt-2 text-xs text-green-700">
                         Tracking ID: <span className="font-mono">{multiSkuProgress.trackingId}</span>
                         <br />
                         Remaining: <span className="font-medium">{multiSkuProgress.remaining} SKU(s)</span>
@@ -640,23 +680,6 @@ const PackingScan: React.FC = () => {
                     </div>
                   )}
 
-                  {/* G-Code Input */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      G-Code
-                    </label>
-                    <input
-                      ref={gCodeInputRef}
-                      type="text"
-                      value={gCode}
-                      onChange={handleGCodeInputChange}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Scan or enter G-Code"
-                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={loading || scanStep === 'tracker'}
-                    />
-                  </div>
-
                   <button
                     onClick={resetForm}
                     className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
@@ -671,7 +694,7 @@ const PackingScan: React.FC = () => {
                         <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
                         <span className="text-sm text-green-800 font-medium">
                           {selectedSkuName ? 
-                            `Packing scan completed successfully! SKU "${selectedSkuName}" ticked.` :
+                            `Packing scan completed successfully! ${multiSkuProgress?.scanned || 1} SKU(s) scanned.` :
                             'Packing scan completed successfully!'
                           }
                         </span>
@@ -758,7 +781,7 @@ const PackingScan: React.FC = () => {
                               <div className="flex items-center">
                                 <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
                                   <div 
-                                    className="bg-blue-600 h-2 rounded-full" 
+                                    className="bg-green-600 h-2 rounded-full" 
                                     style={{ width: `${getProgressPercentage(stat.scanned, stat.total)}%` }}
                                   ></div>
                                 </div>
@@ -777,24 +800,24 @@ const PackingScan: React.FC = () => {
             </div>
 
             {/* Full Width Instructions */}
-            <div className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-8 mt-8">
-              <h3 className="text-lg font-semibold text-blue-800 mb-4">Instructions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-blue-700">
+            <div className="bg-green-50 rounded-lg p-6 border border-green-200 mb-8 mt-8">
+              <h3 className="text-lg font-semibold text-green-800 mb-4">Instructions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-green-700">
                 <div className="space-y-2">
-                  <p className="font-medium">1. Scan Tracker Code</p>
-                  <p className="text-xs">Scan the tracker code - system will auto-verify and show details</p>
+                  <p className="font-medium">1. Auto-Verify Label Scan</p>
+                  <p className="text-xs">System automatically checks label scan is completed</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="font-medium">2. Auto-Show Product</p>
-                  <p className="text-xs">System automatically displays expected G-Code/EAN for verification</p>
+                  <p className="font-medium">2. Scan Tracker Code</p>
+                  <p className="text-xs">Scan the tracker code - system will auto-verify requirements</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="font-medium">3. Scan G-Code/EAN</p>
-                  <p className="text-xs">Scan the product G-Code or EAN - system will auto-validate</p>
+                  <p className="font-medium">3. Scan G-Code</p>
+                  <p className="text-xs">Scan the G-code for the specific product being packed</p>
                 </div>
                 <div className="space-y-2">
                   <p className="font-medium">4. Packing Complete</p>
-                  <p className="text-xs">System verifies codes match and completes packing scan automatically</p>
+                  <p className="text-xs">Order is now ready for dispatch (Single/Multi-SKU)</p>
                 </div>
               </div>
             </div>
@@ -804,7 +827,7 @@ const PackingScan: React.FC = () => {
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Recent Scanning Data</h3>
                 <div className="text-sm text-gray-600">
-                  {loadingScans ? 'Loading...' : `Showing ${startIndex + 1}-${Math.min(endIndex, totalScans)} of ${totalScans} scans`}
+                  {loadingScans ? 'Loading...' : `Showing ${startIndex + 1}-${Math.min(startIndex + itemsPerPage, totalScans)} of ${totalScans} scans`}
                 </div>
               </div>
 
@@ -855,7 +878,7 @@ const PackingScan: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      recentScans.slice(startIndex, endIndex).map((scan) => (
+                      recentScans.map((scan) => (
                         <tr key={scan.id} className="hover:bg-gray-50">
                           <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {scan.tracking_id}
@@ -921,6 +944,26 @@ const PackingScan: React.FC = () => {
               </div>
             </div>
           </>
+        )}
+
+        {/* Pending Shipment Tab */}
+        {activeTab === 'pending' && (
+          <PendingShipmentTab
+            scanType="packing"
+            onSwitchToPending={handleSwitchToPending}
+            onSwitchToNormal={handleSwitchToNormal}
+            isPendingMode={true}
+          />
+        )}
+        {/* Confirmation Modal */}
+        {showConfirmation && confirmationConfig && (
+          <ConfirmationModal
+            isOpen={showConfirmation}
+            title={confirmationConfig.title}
+            message={confirmationConfig.message}
+            onConfirm={confirmationConfig.onConfirm}
+            onCancel={handleCancelConfirmation}
+          />
         )}
       </div>
     </div>

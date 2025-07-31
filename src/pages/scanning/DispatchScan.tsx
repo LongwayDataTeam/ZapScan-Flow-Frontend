@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircleIcon, ExclamationTriangleIcon, TruckIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ExclamationTriangleIcon, TruckIcon, ChevronLeftIcon, ChevronRightIcon, QrCodeIcon } from '@heroicons/react/24/outline';
 import API_ENDPOINTS from '../../config/api';
 import PendingShipmentTab from '../../components/PendingShipmentTab';
+import CancelledShipmentTab from '../../components/CancelledShipmentTab';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 interface TrackerDetails {
   g_code?: string;
@@ -73,8 +75,16 @@ const DispatchScan: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   
-  // Pending shipment mode
-  const [isPendingMode, setIsPendingMode] = useState(false);
+  // Tab management
+  const [activeTab, setActiveTab] = useState<'normal' | 'pending' | 'cancelled'>('normal');
+  
+  // Confirmation modal state
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationConfig, setConfirmationConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   
   // Real data states
   const [platformStats, setPlatformStats] = useState<PlatformStats[]>([]);
@@ -149,9 +159,11 @@ const DispatchScan: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    fetchPlatformStats();
-    fetchRecentScans();
-  }, [currentPage]);
+    if (activeTab === 'normal') {
+      fetchPlatformStats();
+      fetchRecentScans();
+    }
+  }, [currentPage, activeTab]);
 
   // Auto-clear timer
   useEffect(() => {
@@ -204,7 +216,7 @@ const DispatchScan: React.FC = () => {
     setError('');
 
     try {
-              const response = await fetch(API_ENDPOINTS.DISPATCH_SCAN, {
+      const response = await fetch(API_ENDPOINTS.DISPATCH_SCAN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -368,11 +380,42 @@ const DispatchScan: React.FC = () => {
   };
 
   const handleSwitchToPending = () => {
-    setIsPendingMode(true);
+    setConfirmationConfig({
+      title: 'Switch to Pending Shipment',
+      message: 'Are you sure you want to switch to Pending Shipment mode? This will allow you to put shipments on hold.',
+      onConfirm: () => {
+        setActiveTab('pending');
+        setShowConfirmation(false);
+        setConfirmationConfig(null);
+      }
+    });
+    setShowConfirmation(true);
   };
 
   const handleSwitchToNormal = () => {
-    setIsPendingMode(false);
+    setActiveTab('normal');
+  };
+
+  const handleSwitchToCancelled = () => {
+    setConfirmationConfig({
+      title: 'Switch to Cancelled Shipment',
+      message: 'Are you sure you want to switch to Cancelled Shipment mode? This will allow you to cancel shipments.',
+      onConfirm: () => {
+        setActiveTab('cancelled');
+        setShowConfirmation(false);
+        setConfirmationConfig(null);
+      }
+    });
+    setShowConfirmation(true);
+  };
+
+  const handleSwitchToNormalFromCancelled = () => {
+    setActiveTab('normal');
+  };
+
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
+    setConfirmationConfig(null);
   };
 
   return (
@@ -383,345 +426,415 @@ const DispatchScan: React.FC = () => {
           <p className="text-gray-600">Scan tracker code for dispatch verification</p>
         </div>
 
-        {/* Pending Shipment Tab */}
-        <PendingShipmentTab
-          scanType="dispatch"
-          onSwitchToPending={handleSwitchToPending}
-          onSwitchToNormal={handleSwitchToNormal}
-          isPendingMode={isPendingMode}
-        />
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 mb-8">
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('normal')}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'normal'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <QrCodeIcon className="w-5 h-5" />
+                <span>Normal Scan</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={handleSwitchToPending}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'pending'
+                  ? 'bg-white text-orange-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <span className="text-lg">⏸</span>
+                <span>Pending Shipment</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={handleSwitchToCancelled}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'cancelled'
+                  ? 'bg-white text-red-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <span className="text-lg">❌</span>
+                <span>Cancelled Shipment</span>
+              </div>
+            </button>
+          </div>
+        </div>
 
-        {/* Normal Scanning Interface - Only show when not in pending mode */}
-        {!isPendingMode && (
+        {/* Tab Content */}
+        {activeTab === 'normal' && (
           <>
             {/* Left-Right Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Side - Scanning Interface */}
-          <div className="space-y-6">
-            {/* Scanning Interface */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <TruckIcon className="w-8 h-8 text-purple-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Dispatch Station</h2>
-                <p className="text-gray-600">Scan tracker for dispatch</p>
-              </div>
-
-              {/* Tracker Code Input */}
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Tracker Code
-                </label>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={trackerCode}
-                  onChange={handleInputChange}
-                  onKeyPress={handleKeyPress}
-                  placeholder="SCAN TRACKER CODE (AUTO UPPERCASE)"
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-uppercase"
-                  disabled={loading}
-                  autoFocus
-                />
-              </div>
-
-              {/* Multi-SKU Progress Indicator */}
-              {multiSkuProgress && (
-                <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-purple-800">Multi-SKU Order Progress</span>
-                    <span className="text-xs text-purple-600">
-                      {multiSkuProgress.scanned}/{multiSkuProgress.total} SKUs
-                    </span>
+              {/* Left Side - Scanning Interface */}
+              <div className="space-y-6">
+                {/* Scanning Interface */}
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <TruckIcon className="w-8 h-8 text-purple-600" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Dispatch Station</h2>
+                    <p className="text-gray-600">Scan tracker for dispatch</p>
                   </div>
-                  <div className="w-full bg-purple-200 rounded-full h-2">
-                    <div 
-                      className="bg-purple-600 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${getProgressPercentage(multiSkuProgress.scanned, multiSkuProgress.total)}%` }}
-                    ></div>
+
+                  {/* Tracker Code Input */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Tracker Code
+                    </label>
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={trackerCode}
+                      onChange={handleInputChange}
+                      onKeyPress={handleKeyPress}
+                      placeholder="SCAN TRACKER CODE (AUTO UPPERCASE)"
+                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-uppercase"
+                      disabled={loading}
+                      autoFocus
+                    />
                   </div>
-                  <div className="mt-2 text-xs text-purple-700">
-                    Tracking ID: <span className="font-mono">{multiSkuProgress.trackingId}</span>
-                    <br />
-                    Remaining: <span className="font-medium">{multiSkuProgress.remaining} SKU(s)</span>
-                    {multiSkuProgress.selectedSkuGCode && (
-                      <>
+
+                  {/* Multi-SKU Progress Indicator */}
+                  {multiSkuProgress && (
+                    <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-purple-800">Multi-SKU Order Progress</span>
+                        <span className="text-xs text-purple-600">
+                          {multiSkuProgress.scanned}/{multiSkuProgress.total} SKUs
+                        </span>
+                      </div>
+                      <div className="w-full bg-purple-200 rounded-full h-2">
+                        <div 
+                          className="bg-purple-600 h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${getProgressPercentage(multiSkuProgress.scanned, multiSkuProgress.total)}%` }}
+                        ></div>
+                      </div>
+                      <div className="mt-2 text-xs text-purple-700">
+                        Tracking ID: <span className="font-mono">{multiSkuProgress.trackingId}</span>
                         <br />
-                        Selected SKU: <span className="font-mono">{multiSkuProgress.selectedSkuGCode}</span>
-                        {multiSkuProgress.selectedSkuEanCode && (
-                          <> (EAN: {multiSkuProgress.selectedSkuEanCode})</>
+                        Remaining: <span className="font-medium">{multiSkuProgress.remaining} SKU(s)</span>
+                        {multiSkuProgress.selectedSkuGCode && (
+                          <>
+                            <br />
+                            Selected SKU: <span className="font-mono">{multiSkuProgress.selectedSkuGCode}</span>
+                            {multiSkuProgress.selectedSkuEanCode && (
+                              <> (EAN: {multiSkuProgress.selectedSkuEanCode})</>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+                      </div>
+                    </div>
+                  )}
 
-              <button
-                onClick={resetForm}
-                className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Reset
-              </button>
+                  <button
+                    onClick={resetForm}
+                    className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  >
+                    Reset
+                  </button>
 
-              {/* Success/Error Messages */}
-              {success && (
-                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
-                    <span className="text-sm text-green-800 font-medium">
-                      {selectedSkuName ? 
-                        `Dispatch scan completed successfully! ${multiSkuProgress?.scanned || 1} SKU(s) scanned.` :
-                        'Dispatch scan completed successfully!'
-                      }
-                    </span>
-                  </div>
-                </div>
-              )}
+                  {/* Success/Error Messages */}
+                  {success && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center">
+                        <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
+                        <span className="text-sm text-green-800 font-medium">
+                          {selectedSkuName ? 
+                            `Dispatch scan completed successfully! ${multiSkuProgress?.scanned || 1} SKU(s) scanned.` :
+                            'Dispatch scan completed successfully!'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
-              {error && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-2" />
-                    <span className="text-sm text-red-800">{error}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Side - Platform Statistics */}
-          <div className="space-y-6">
-            {/* Platform Statistics */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Platform Statistics</h3>
-                <div className="text-sm text-gray-600">
-                  {loadingStats ? 'Loading...' : `${platformStats.length} couriers`}
+                  {error && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center">
+                        <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-2" />
+                        <span className="text-sm text-red-800">{error}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Right Side - Platform Statistics */}
+              <div className="space-y-6">
+                {/* Platform Statistics */}
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Platform Statistics</h3>
+                    <div className="text-sm text-gray-600">
+                      {loadingStats ? 'Loading...' : `${platformStats.length} couriers`}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Courier
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Total
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Scanned
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Pending
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Multi-SKU
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Single-SKU
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Progress
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {platformStats.map((stat, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {stat.courier}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {stat.total}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                              {stat.scanned}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                              {stat.pending}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm">
+                              <div className="text-center">
+                                <div className="text-green-600 font-medium">{stat.multi_sku_scanned || 0}</div>
+                                <div className="text-red-600 text-xs">{stat.multi_sku_pending || 0}</div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm">
+                              <div className="text-center">
+                                <div className="text-green-600 font-medium">{stat.single_sku_scanned || 0}</div>
+                                <div className="text-red-600 text-xs">{stat.single_sku_pending || 0}</div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full" 
+                                    style={{ width: `${getProgressPercentage(stat.scanned, stat.total)}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs text-gray-500">
+                                  {getProgressPercentage(stat.scanned, stat.total)}%
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Full Width Instructions */}
+            <div className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-8 mt-8">
+              <h3 className="text-lg font-semibold text-blue-800 mb-4">Instructions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-blue-700">
+                <div className="space-y-2">
+                  <p className="font-medium">1. Auto-Verify Previous Scans</p>
+                  <p className="text-xs">System automatically checks label and packing scans are completed</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">2. Scan Tracker Code</p>
+                  <p className="text-xs">Scan the tracker code - system will auto-verify all requirements</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">3. Auto-Complete Dispatch</p>
+                  <p className="text-xs">System automatically completes dispatch scan when all checks pass</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">4. Fulfillment Complete</p>
+                  <p className="text-xs">Order is now ready for final delivery (Single/Multi-SKU)</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Scanning Data - Full Width */}
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Scanning Data</h3>
+                <div className="text-sm text-gray-600">
+                  {loadingScans ? 'Loading...' : `Showing ${startIndex + 1}-${Math.min(endIndex, totalScans)} of ${totalScans} scans`}
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tracking ID
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Platform
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Last Scan
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Distribution
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        City
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Courier
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Scanned
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pending
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Multi-SKU
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Single-SKU
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Progress
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Time
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {platformStats.map((stat, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {stat.courier}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {stat.total}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                          {stat.scanned}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                          {stat.pending}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <div className="text-center">
-                            <div className="text-green-600 font-medium">{stat.multi_sku_scanned || 0}</div>
-                            <div className="text-red-600 text-xs">{stat.multi_sku_pending || 0}</div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <div className="text-center">
-                            <div className="text-green-600 font-medium">{stat.single_sku_scanned || 0}</div>
-                            <div className="text-red-600 text-xs">{stat.single_sku_pending || 0}</div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full" 
-                                style={{ width: `${getProgressPercentage(stat.scanned, stat.total)}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {getProgressPercentage(stat.scanned, stat.total)}%
-                            </span>
-                          </div>
+                    {loadingScans ? (
+                      <tr>
+                        <td colSpan={9} className="px-3 py-4 text-center text-sm text-gray-500">
+                          Loading recent scans...
                         </td>
                       </tr>
-                    ))}
+                    ) : recentScans.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-3 py-4 text-center text-sm text-gray-500">
+                          No recent scans found
+                        </td>
+                      </tr>
+                    ) : (
+                      recentScans.map((scan) => (
+                        <tr key={scan.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {scan.tracking_id}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scan.platform}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getScanColor(scan.last_scan)}`}>
+                              {scan.last_scan}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(scan.scan_status)}`}>
+                              {scan.scan_status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scan.distribution}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ₹{scan.amount}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scan.buyer_city}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scan.courier}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {scan.scan_time}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Full Width Instructions */}
-        <div className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-8 mt-8">
-          <h3 className="text-lg font-semibold text-blue-800 mb-4">Instructions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-blue-700">
-            <div className="space-y-2">
-              <p className="font-medium">1. Auto-Verify Previous Scans</p>
-              <p className="text-xs">System automatically checks label and packing scans are completed</p>
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-700">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1 || loadingScans}
+                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    <ChevronLeftIcon className="h-4 w-4 mr-1" />
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages || loadingScans}
+                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    Next
+                    <ChevronRightIcon className="h-4 w-4 ml-1" />
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <p className="font-medium">2. Scan Tracker Code</p>
-              <p className="text-xs">Scan the tracker code - system will auto-verify all requirements</p>
-            </div>
-            <div className="space-y-2">
-              <p className="font-medium">3. Auto-Complete Dispatch</p>
-              <p className="text-xs">System automatically completes dispatch scan when all checks pass</p>
-            </div>
-            <div className="space-y-2">
-              <p className="font-medium">4. Fulfillment Complete</p>
-              <p className="text-xs">Order is now ready for final delivery (Single/Multi-SKU)</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Scanning Data - Full Width */}
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Scanning Data</h3>
-            <div className="text-sm text-gray-600">
-              {loadingScans ? 'Loading...' : `Showing ${startIndex + 1}-${Math.min(endIndex, totalScans)} of ${totalScans} scans`}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tracking ID
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Platform
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Scan
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Distribution
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    City
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Courier
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loadingScans ? (
-                  <tr>
-                    <td colSpan={9} className="px-3 py-4 text-center text-sm text-gray-500">
-                      Loading recent scans...
-                    </td>
-                  </tr>
-                ) : recentScans.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-3 py-4 text-center text-sm text-gray-500">
-                      No recent scans found
-                    </td>
-                  </tr>
-                ) : (
-                  recentScans.map((scan) => (
-                    <tr key={scan.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {scan.tracking_id}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {scan.platform}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getScanColor(scan.last_scan)}`}>
-                          {scan.last_scan}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(scan.scan_status)}`}>
-                          {scan.scan_status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {scan.distribution}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₹{scan.amount}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {scan.buyer_city}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {scan.courier}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {scan.scan_time}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-700">
-              Page {currentPage} of {totalPages}
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1 || loadingScans}
-                className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-              >
-                <ChevronLeftIcon className="h-4 w-4 mr-1" />
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages || loadingScans}
-                className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-              >
-                Next
-                <ChevronRightIcon className="h-4 w-4 ml-1" />
-              </button>
-            </div>
-          </div>
-        </div>
           </>
+        )}
+
+        {/* Pending Shipment Tab */}
+        {activeTab === 'pending' && (
+          <PendingShipmentTab
+            scanType="dispatch"
+            onSwitchToPending={handleSwitchToPending}
+            onSwitchToNormal={handleSwitchToNormal}
+            isPendingMode={true}
+          />
+        )}
+
+        {/* Cancelled Shipment Tab */}
+        {activeTab === 'cancelled' && (
+          <CancelledShipmentTab
+            scanType="dispatch"
+            onSwitchToCancelled={handleSwitchToCancelled}
+            onSwitchToNormal={handleSwitchToNormalFromCancelled}
+            isCancelledMode={true}
+          />
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirmation && confirmationConfig && (
+          <ConfirmationModal
+            isOpen={showConfirmation}
+            title={confirmationConfig.title}
+            message={confirmationConfig.message}
+            onConfirm={confirmationConfig.onConfirm}
+            onCancel={handleCancelConfirmation}
+          />
         )}
       </div>
     </div>
