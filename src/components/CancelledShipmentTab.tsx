@@ -48,7 +48,7 @@ const CancelledShipmentTab: React.FC<CancelledShipmentTabProps> = ({
   const fetchRecentActivities = async () => {
     try {
       setLoadingActivities(true);
-      const response = await fetch(`${API_ENDPOINTS.CANCELLED_SHIPMENTS}?scan_type=${scanType}`, {
+      const response = await fetch(`${API_ENDPOINTS.CANCELLED_SHIPMENTS()}?scan_type=${scanType}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ const CancelledShipmentTab: React.FC<CancelledShipmentTabProps> = ({
     setError('');
 
     try {
-      const response = await fetch(API_ENDPOINTS.CANCELLED_SHIPMENT, {
+      const response = await fetch(API_ENDPOINTS.CANCELLED_SHIPMENT(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

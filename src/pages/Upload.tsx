@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { CloudArrowUpIcon, DocumentTextIcon, CheckCircleIcon, TableCellsIcon, TrashIcon, ExclamationTriangleIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import TrackingStats from '../components/TrackingStats';
+import TrackingStatistics from '../components/TrackingStatistics';
+import TrackerTable from '../components/TrackerTable';
 import API_ENDPOINTS from '../config/api';
 
 interface TrackingStatsData {
@@ -45,10 +47,13 @@ const Upload: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [uploadMode, setUploadMode] = useState<'simple' | 'detailed'>('simple');
-  const [duplicateHandling, setDuplicateHandling] = useState<'allow' | 'skip' | 'update'>('allow');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingData, setProcessingData] = useState(false);
+     const [uploadMode, setUploadMode] = useState<'simple' | 'detailed'>('detailed');
+   const [duplicateHandling, setDuplicateHandling] = useState<'allow' | 'skip' | 'update'>('allow');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearLoading, setClearLoading] = useState(false);
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState(0);
 
   useEffect(() => {
     fetchUploadedTrackers();
@@ -57,7 +62,7 @@ const Upload: React.FC = () => {
 
   const fetchUploadedTrackers = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.UPLOADED_TRACKERS);
+      const response = await fetch(API_ENDPOINTS.UPLOADED_TRACKERS());
       if (response.ok) {
         const data = await response.json();
         setUploadedTrackers(data.uploaded_trackers || []);
@@ -69,7 +74,7 @@ const Upload: React.FC = () => {
 
   const fetchTrackingStats = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.TRACKING_STATS);
+      const response = await fetch(API_ENDPOINTS.TRACKING_STATS());
       if (response.ok) {
         const data = await response.json();
         setTrackingStats(data);
@@ -85,7 +90,7 @@ const Upload: React.FC = () => {
     setClearLoading(true);
     try {
       // Clear all data from local backend
-      const response = await fetch(API_ENDPOINTS.CLEAR_DATA, {
+      const response = await fetch(API_ENDPOINTS.CLEAR_DATA(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,7 +145,7 @@ const Upload: React.FC = () => {
       }
 
       // Upload to local backend
-              const localResponse = await fetch(`${API_ENDPOINTS.UPLOAD_TRACKERS}?duplicate_handling=${duplicateHandling}`, {
+              const localResponse = await fetch(`${API_ENDPOINTS.UPLOAD_TRACKERS()}?duplicate_handling=${duplicateHandling}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -157,6 +162,7 @@ const Upload: React.FC = () => {
         setTrackerCodes('');
         fetchUploadedTrackers();
         fetchTrackingStats();
+        setTableRefreshTrigger(prev => prev + 1);
         
         // Reset success message after 3 seconds
         setTimeout(() => setUploadSuccess(false), 3000);
@@ -177,10 +183,12 @@ const Upload: React.FC = () => {
     }
 
     setLoading(true);
+    setProcessingData(true);
+    setUploadProgress(0);
     setError('');
 
     try {
-      // Parse CSV-like data
+      // Parse CSV-like data with progress indication
       const lines = trackerCodes.trim().split('\n');
       
       // Detect separator (comma or tab)
@@ -198,6 +206,10 @@ const Upload: React.FC = () => {
       const headers = lines[0].split(separator);
       
       const trackers: TrackerData[] = [];
+      
+      // Process data in chunks to avoid blocking the UI
+      const chunkSize = 1000;
+      const totalLines = lines.length - 1;
       
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(separator);
@@ -227,42 +239,77 @@ const Upload: React.FC = () => {
             trackers.push(tracker);
           }
         }
+        
+        // Update progress every 1000 records
+        if (i % chunkSize === 0) {
+          const progress = Math.min(50, Math.round((i / totalLines) * 50));
+          setUploadProgress(progress);
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
       }
 
       if (trackers.length === 0) {
         setError('No valid tracker data found. Please check the format.');
         setLoading(false);
+        setProcessingData(false);
         return;
       }
 
-      // Upload to local backend
-              const localResponse = await fetch(`${API_ENDPOINTS.UPLOAD_DETAILED_TRACKERS}?duplicate_handling=${duplicateHandling}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          trackers: trackers
-        }),
-      });
+      // Switch to upload phase
+      setProcessingData(false);
+      setUploadProgress(50);
 
-      const localData = await localResponse.json();
+      // Upload to local backend with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
 
-      if (localResponse.ok) {
-        setUploadSuccess(true);
-        setTrackerCodes('');
-        fetchUploadedTrackers();
-        fetchTrackingStats();
-        
-        // Reset success message after 3 seconds
-        setTimeout(() => setUploadSuccess(false), 3000);
-      } else {
-        setError(localData.detail || 'Upload failed');
+      try {
+        const localResponse = await fetch(`${API_ENDPOINTS.UPLOAD_DETAILED_TRACKERS()}?duplicate_handling=${duplicateHandling}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            trackers: trackers
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        setUploadProgress(100);
+        const localData = await localResponse.json();
+
+        if (localResponse.ok) {
+          setUploadSuccess(true);
+          setTrackerCodes('');
+          
+          // Refresh data in background
+          Promise.all([
+            fetchUploadedTrackers(),
+            fetchTrackingStats()
+          ]).then(() => {
+            setTableRefreshTrigger(prev => prev + 1);
+          });
+          
+          // Reset success message after 3 seconds
+          setTimeout(() => setUploadSuccess(false), 3000);
+        } else {
+          setError(localData.detail || 'Upload failed');
+        }
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          setError('Upload timed out. Please try with a smaller file or check your connection.');
+        } else {
+          throw fetchError;
+        }
       }
     } catch (error) {
+      console.error('Upload error:', error);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
+      setProcessingData(false);
+      setUploadProgress(0);
     }
   };
 
@@ -277,18 +324,30 @@ const Upload: React.FC = () => {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file size (limit to 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        setError('File size too large. Please use a file smaller than 50MB.');
+        event.target.value = '';
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
         setTrackerCodes(content);
+        setError(''); // Clear any previous errors
+      };
+      reader.onerror = () => {
+        setError('Error reading file. Please try again.');
       };
       reader.readAsText(file);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
+    <>
+      <div className="w-full px-4 py-8">
+        <div className="w-full">
         <div className="mb-6">
           <div className="flex justify-between items-center">
             <div>
@@ -351,163 +410,79 @@ const Upload: React.FC = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Upload Form */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
+                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+           {/* Upload Form */}
+           <div className="xl:col-span-1">
+             <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 h-full">
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CloudArrowUpIcon className="w-8 h-8 text-blue-600" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Upload Tracker Codes</h2>
-                <p className="text-gray-600">Enter tracker codes manually or upload a file</p>
+                                 <h2 className="text-xl font-bold text-gray-900 mb-2">Upload Tracker Codes</h2>
+                 <p className="text-gray-600">Upload detailed tracker data files</p>
               </div>
 
-              {/* Upload Mode Toggle */}
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Upload Mode
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setUploadMode('simple')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      uploadMode === 'simple'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Simple Codes
-                  </button>
-                  <button
-                    onClick={() => setUploadMode('detailed')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      uploadMode === 'detailed'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Detailed Data
-                  </button>
-                </div>
-              </div>
+                             
 
-              {/* Duplicate Handling Options */}
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Duplicate Handling
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setDuplicateHandling('allow')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      duplicateHandling === 'allow'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    title="Allow multiple entries with same tracking ID"
-                  >
-                    Allow Duplicates
-                  </button>
-                  <button
-                    onClick={() => setDuplicateHandling('skip')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      duplicateHandling === 'skip'
-                        ? 'bg-yellow-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    title="Skip entries with existing tracking ID"
-                  >
-                    Skip Duplicates
-                  </button>
-                  <button
-                    onClick={() => setDuplicateHandling('update')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      duplicateHandling === 'update'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    title="Update existing entries with same tracking ID"
-                  >
-                    Update Existing
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {duplicateHandling === 'allow' && 'Multiple entries with same tracking ID will be kept separate'}
-                  {duplicateHandling === 'skip' && 'Entries with existing tracking ID will be skipped'}
-                  {duplicateHandling === 'update' && 'Existing entries with same tracking ID will be updated'}
-                </p>
-              </div>
+                             {/* File Upload */}
+               <div className="mb-4">
+                 <label className="block text-sm font-semibold text-gray-700 mb-2">
+                   Upload File (CSV/Tab-separated)
+                 </label>
+                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                   <input
+                     type="file"
+                     accept=".txt,.csv"
+                     onChange={handleFileUpload}
+                     className="hidden"
+                     id="file-upload"
+                   />
+                   <label htmlFor="file-upload" className="cursor-pointer">
+                     <DocumentTextIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                     <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
+                     <p className="text-xs text-gray-500 mt-1">
+                       CSV, Tab-separated files with headers supported
+                     </p>
+                   </label>
+                 </div>
+               </div>
 
-              {/* File Upload */}
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                      Upload File ({uploadMode === 'simple' ? 'CSV/TXT' : 'CSV/Tab-separated'})
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
-                  <input
-                    type="file"
-                    accept={uploadMode === 'simple' ? '.csv,.txt' : '.txt,.csv'}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <DocumentTextIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {uploadMode === 'simple' 
-                        ? 'CSV, TXT files supported' 
-                        : 'CSV, Tab-separated files with headers supported'
-                      }
-                    </p>
-                  </label>
-                </div>
-              </div>
+              
 
-              {/* Manual Input */}
-              <div className="mb-6">
-                <label htmlFor="trackerCodes" className="block text-sm font-semibold text-gray-700 mb-2">
-                  {uploadMode === 'simple' ? 'Tracker Codes' : 'Detailed Tracker Data'}
-                </label>
-                <textarea
-                  id="trackerCodes"
-                  value={trackerCodes}
-                  onChange={(e) => setTrackerCodes(e.target.value)}
-                  placeholder={
-                    uploadMode === 'simple' 
-                      ? "Enter tracker codes (one per line or comma-separated)\nExample:\nTRACK001\nTRACK002\nTRACK003"
-                      : "Paste your tab-separated data with headers\nChannel ID\tOrder ID\tSub Order ID\tShipment Tracker\tCourier\tChannel Name\tG-Code\tEAN-Code\tProduct Sku Code\tChannel Listing ID\tQty\tAmount\tPayment Mode\tOrder Status\tBuyer City\tBuyer State\tBuyer Pincode\tInvoice Number"
-                  }
-                  className="w-full h-32 p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                  disabled={loading}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {uploadMode === 'simple' 
-                    ? 'Enter one tracker code per line or separate with commas'
-                    : 'Paste your CSV or tab-separated data with headers (copy from Excel)'
-                  }
-                </p>
-              </div>
+                             {/* Upload Button */}
+               <button
+                 onClick={handleUpload}
+                 disabled={loading || !trackerCodes.trim()}
+                 className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold"
+               >
+                 {loading ? (
+                   <>
+                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                     {processingData ? 'Processing Data...' : 'Uploading...'}
+                   </>
+                 ) : (
+                   <>
+                     <CloudArrowUpIcon className="h-5 w-5 mr-3" />
+                     {trackerCodes.trim() ? 'Upload Trackers' : 'Select File to Upload'}
+                   </>
+                 )}
+               </button>
 
-              {/* Upload Button */}
-              <button
-                onClick={handleUpload}
-                disabled={loading || !trackerCodes.trim()}
-                className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <CloudArrowUpIcon className="h-5 w-5 mr-3" />
-                    Upload Trackers
-                  </>
-                )}
-              </button>
+               {/* Progress Bar */}
+               {loading && (
+                 <div className="mt-4">
+                   <div className="flex justify-between text-sm text-gray-600 mb-1">
+                     <span>{processingData ? 'Processing data...' : 'Uploading to server...'}</span>
+                     <span>{uploadProgress}%</span>
+                   </div>
+                   <div className="w-full bg-gray-200 rounded-full h-2">
+                     <div 
+                       className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                       style={{ width: `${uploadProgress}%` }}
+                     ></div>
+                   </div>
+                 </div>
+               )}
 
               {/* Success/Error Messages */}
               {uploadSuccess && (
@@ -526,67 +501,134 @@ const Upload: React.FC = () => {
                   <span className="text-sm text-red-800">{error}</span>
                 </div>
               )}
+                         </div>
+
+             
+           </div>
+
+           {/* Upload Page Statistics */}
+           <div className="xl:col-span-1">
+             <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 h-full">
+               <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Statistics</h3>
+               <p className="text-sm text-gray-600 mb-6">Scanned counts till now</p>
+               
+               <div className="grid grid-cols-2 gap-4">
+                 {/* Label Scanned */}
+                 <div className="bg-green-50 rounded-lg p-4">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <p className="text-sm font-medium text-green-600">Label Scanned</p>
+                       <p className="text-2xl font-bold text-green-900">{trackingStats?.label_scanned || 0}</p>
+                       <p className="text-xs text-green-600">Scanned till now</p>
+                     </div>
+                     <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                       <span className="text-green-600 text-sm font-bold">L</span>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Packing Scanned */}
+                 <div className="bg-orange-50 rounded-lg p-4">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <p className="text-sm font-medium text-orange-600">Packing Scanned</p>
+                       <p className="text-2xl font-bold text-orange-900">{trackingStats?.packing_scanned || 0}</p>
+                       <p className="text-xs text-orange-600">Scanned till now</p>
+                     </div>
+                     <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                       <span className="text-orange-600 text-sm font-bold">P</span>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Dispatch Scanned */}
+                 <div className="bg-purple-50 rounded-lg p-4">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <p className="text-sm font-medium text-purple-600">Dispatch Scanned</p>
+                       <p className="text-2xl font-bold text-purple-900">{trackingStats?.dispatch_scanned || 0}</p>
+                       <p className="text-xs text-purple-600">Scanned till now</p>
+                     </div>
+                     <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                       <span className="text-purple-600 text-sm font-bold">D</span>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Total Upload */}
+                 <div className="bg-blue-50 rounded-lg p-4">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <p className="text-sm font-medium text-blue-600">Total Upload</p>
+                       <p className="text-2xl font-bold text-blue-900">{trackingStats?.total_uploaded || 0}</p>
+                       <p className="text-xs text-blue-600">Total items</p>
+                     </div>
+                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                       <span className="text-blue-600 text-sm font-bold">T</span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+
+               {/* Progress Summary */}
+               {trackingStats && (
+                 <div className="mt-6 pt-4 border-t border-gray-200">
+                   <h4 className="text-sm font-medium text-gray-700 mb-3">Progress Summary</h4>
+                   <div className="space-y-2">
+                     <div className="flex justify-between text-sm">
+                       <span className="text-gray-600">Label Progress:</span>
+                       <span className="font-medium text-green-600">
+                         {trackingStats.total_uploaded > 0 ? Math.round((trackingStats.label_scanned / trackingStats.total_uploaded) * 100) : 0}%
+                       </span>
+                     </div>
+                     <div className="flex justify-between text-sm">
+                       <span className="text-gray-600">Packing Progress:</span>
+                       <span className="font-medium text-orange-600">
+                         {trackingStats.total_uploaded > 0 ? Math.round((trackingStats.packing_scanned / trackingStats.total_uploaded) * 100) : 0}%
+                       </span>
+                     </div>
+                     <div className="flex justify-between text-sm">
+                       <span className="text-gray-600">Dispatch Progress:</span>
+                       <span className="font-medium text-purple-600">
+                         {trackingStats.total_uploaded > 0 ? Math.round((trackingStats.dispatch_scanned / trackingStats.total_uploaded) * 100) : 0}%
+                       </span>
+                     </div>
+                   </div>
+                 </div>
+               )}
+             </div>
+           </div>
+         </div>
+
+         {/* Full Tracking Statistics */}
+         <div className="mt-6">
+           <TrackingStatistics refreshTrigger={tableRefreshTrigger} />
+         </div>
+        </div>
+
+        {/* Sample Data Format */}
+        {uploadMode === 'detailed' && (
+          <div className="bg-white rounded-lg shadow-md p-6 mt-6 border border-gray-100">
+            <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+              <TableCellsIcon className="h-5 w-5 mr-2" />
+              Sample Data Format
+            </h3>
+            <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded border">
+              <p className="font-medium mb-2">Copy your data from Excel and paste here:</p>
+              <div className="font-mono text-xs">
+                Channel ID	Order ID	Sub Order ID	Shipment Tracker	Courier	Channel Name	G-Code	EAN-Code	Product Sku Code	Channel Listing ID	Qty	Amount	Payment Mode	Order Status	Buyer City	Buyer State	Buyer Pincode	Invoice Number<br/>
+                35180	403-9522880-1202765	Uw859PYkf	13371696879100	Amazon DF	VC Amazon DF	DSQW-78688493	8904473902385	JN-Thunder-Pro-Blue-4J-P1	B0DT9Y9Q46	1	1198.88	PREPAID	Shipped	SAPATGRAM	Assam	783337	INS229975
+              </div>
             </div>
-
-            {/* Uploaded Trackers List */}
-            {uploadedTrackers.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6 mt-6 border border-gray-100">
-                <h3 className="text-base font-semibold text-gray-900 mb-3">Uploaded Trackers</h3>
-                <div className="max-h-40 overflow-y-auto">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {uploadedTrackers.map((tracker, index) => (
-                      <div key={index} className="p-2 bg-gray-50 rounded text-xs font-medium text-gray-700">
-                        {tracker}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Total: {uploadedTrackers.length} trackers
-                </p>
-              </div>
-            )}
           </div>
+        )}
 
-          {/* Tracking Statistics */}
-          <div className="lg:col-span-1">
-            {trackingStats ? (
-              <TrackingStats stats={trackingStats} />
-            ) : (
-              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
-                <div className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="h-16 bg-gray-200 rounded"></div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-
-
-            {/* Sample Data Format */}
-            {uploadMode === 'detailed' && (
-              <div className="bg-white rounded-lg shadow-md p-6 mt-6 border border-gray-100">
-                <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
-                  <TableCellsIcon className="h-5 w-5 mr-2" />
-                  Sample Data Format
-                </h3>
-                <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded border">
-                  <p className="font-medium mb-2">Copy your data from Excel and paste here:</p>
-                  <div className="font-mono text-xs">
-                    Channel ID	Order ID	Sub Order ID	Shipment Tracker	Courier	Channel Name	G-Code	EAN-Code	Product Sku Code	Channel Listing ID	Qty	Amount	Payment Mode	Order Status	Buyer City	Buyer State	Buyer Pincode	Invoice Number<br/>
-                    35180	403-9522880-1202765	Uw859PYkf	13371696879100	Amazon DF	VC Amazon DF	DSQW-78688493	8904473902385	JN-Thunder-Pro-Blue-4J-P1	B0DT9Y9Q46	1	1198.88	PREPAID	Shipped	SAPATGRAM	Assam	783337	INS229975
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        {/* Tabular Data Section */}
+        <div className="mt-8">
+          <TrackerTable refreshTrigger={tableRefreshTrigger} />
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

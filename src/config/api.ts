@@ -67,54 +67,54 @@ class SecureAPIService {
   }
 }
 
-// Export secure endpoints as strings (not functions to avoid breaking existing code)
+// Export secure endpoints as functions to ensure dynamic URL resolution
 export const API_ENDPOINTS = {
   // Dashboard
-  DASHBOARD_STATS: SecureAPIService.getEndpoint(API_PATHS.DASHBOARD_STATS),
-  TRACKING_STATS: SecureAPIService.getEndpoint(API_PATHS.TRACKING_STATS),
+  DASHBOARD_STATS: () => SecureAPIService.getEndpoint(API_PATHS.DASHBOARD_STATS),
+  TRACKING_STATS: () => SecureAPIService.getEndpoint(API_PATHS.TRACKING_STATS),
   
   // Trackers
-  UPLOADED_TRACKERS: SecureAPIService.getEndpoint(API_PATHS.UPLOADED_TRACKERS),
-  ALL_TRACKERS: SecureAPIService.getEndpoint(API_PATHS.ALL_TRACKERS),
-  UPLOAD_TRACKERS: SecureAPIService.getEndpoint(API_PATHS.UPLOAD_TRACKERS),
-  UPLOAD_DETAILED_TRACKERS: SecureAPIService.getEndpoint(API_PATHS.UPLOAD_DETAILED_TRACKERS),
+  UPLOADED_TRACKERS: () => SecureAPIService.getEndpoint(API_PATHS.UPLOADED_TRACKERS),
+  ALL_TRACKERS: () => SecureAPIService.getEndpoint(API_PATHS.ALL_TRACKERS),
+  UPLOAD_TRACKERS: () => SecureAPIService.getEndpoint(API_PATHS.UPLOAD_TRACKERS),
+  UPLOAD_DETAILED_TRACKERS: () => SecureAPIService.getEndpoint(API_PATHS.UPLOAD_DETAILED_TRACKERS),
   
   // Scans
-  LABEL_SCAN: SecureAPIService.getEndpoint(API_PATHS.LABEL_SCAN),
-  PACKING_SCAN: SecureAPIService.getEndpoint(API_PATHS.PACKING_SCAN),
-  PACKING_DUAL_SCAN: SecureAPIService.getEndpoint(API_PATHS.PACKING_DUAL_SCAN),
-  DISPATCH_SCAN: SecureAPIService.getEndpoint(API_PATHS.DISPATCH_SCAN),
-  CANCELLED_SHIPMENT: SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENT),
-  PENDING_SHIPMENT: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENT),
-  UNHOLD_SHIPMENT: SecureAPIService.getEndpoint(API_PATHS.UNHOLD_SHIPMENT),
+  LABEL_SCAN: () => SecureAPIService.getEndpoint(API_PATHS.LABEL_SCAN),
+  PACKING_SCAN: () => SecureAPIService.getEndpoint(API_PATHS.PACKING_SCAN),
+  PACKING_DUAL_SCAN: () => SecureAPIService.getEndpoint(API_PATHS.PACKING_DUAL_SCAN),
+  DISPATCH_SCAN: () => SecureAPIService.getEndpoint(API_PATHS.DISPATCH_SCAN),
+  CANCELLED_SHIPMENT: () => SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENT),
+  PENDING_SHIPMENT: () => SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENT),
+  UNHOLD_SHIPMENT: () => SecureAPIService.getEndpoint(API_PATHS.UNHOLD_SHIPMENT),
   
   // Recent Scans
-  RECENT_LABEL_SCANS: SecureAPIService.getEndpoint(API_PATHS.RECENT_LABEL_SCANS),
-  RECENT_PACKING_SCANS: SecureAPIService.getEndpoint(API_PATHS.RECENT_PACKING_SCANS),
-  RECENT_DISPATCH_SCANS: SecureAPIService.getEndpoint(API_PATHS.RECENT_DISPATCH_SCANS),
-  RECENT_SCANS: SecureAPIService.getEndpoint(API_PATHS.RECENT_SCANS),
+  RECENT_LABEL_SCANS: () => SecureAPIService.getEndpoint(API_PATHS.RECENT_LABEL_SCANS),
+  RECENT_PACKING_SCANS: () => SecureAPIService.getEndpoint(API_PATHS.RECENT_PACKING_SCANS),
+  RECENT_DISPATCH_SCANS: () => SecureAPIService.getEndpoint(API_PATHS.RECENT_DISPATCH_SCANS),
+  RECENT_SCANS: () => SecureAPIService.getEndpoint(API_PATHS.RECENT_SCANS),
   
   // Statistics
-  PLATFORM_STATS: SecureAPIService.getEndpoint(API_PATHS.PLATFORM_STATS),
+  PLATFORM_STATS: () => SecureAPIService.getEndpoint(API_PATHS.PLATFORM_STATS),
   
   // Pending Shipments
-  PENDING_SHIPMENTS: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENTS),
-  PENDING_SHIPMENTS_COUNT: SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENTS_COUNT),
-  ALL_HOLD_SHIPMENTS: SecureAPIService.getEndpoint(API_PATHS.ALL_HOLD_SHIPMENTS),
+  PENDING_SHIPMENTS: () => SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENTS),
+  PENDING_SHIPMENTS_COUNT: () => SecureAPIService.getEndpoint(API_PATHS.PENDING_SHIPMENTS_COUNT),
+  ALL_HOLD_SHIPMENTS: () => SecureAPIService.getEndpoint(API_PATHS.ALL_HOLD_SHIPMENTS),
   
   // Cancelled Shipments
-  CANCELLED_SHIPMENTS: SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENTS),
-  CANCELLED_SHIPMENTS_COUNT: SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENTS_COUNT),
+  CANCELLED_SHIPMENTS: () => SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENTS),
+  CANCELLED_SHIPMENTS_COUNT: () => SecureAPIService.getEndpoint(API_PATHS.CANCELLED_SHIPMENTS_COUNT),
   
   // Tracker Details
   TRACKER_COUNT: (trackerCode: string) => SecureAPIService.getTrackerEndpoint(trackerCode, '/count'),
   TRACKER_PACKING_DETAILS: (trackerCode: string) => SecureAPIService.getTrackerEndpoint(trackerCode, '/packing-details'),
   
   // System
-  CLEAR_DATA: SecureAPIService.getEndpoint(API_PATHS.CLEAR_DATA),
+  CLEAR_DATA: () => SecureAPIService.getEndpoint(API_PATHS.CLEAR_DATA),
   
   // Health
-  HEALTH: SecureAPIService.getEndpoint(API_PATHS.HEALTH),
+  HEALTH: () => SecureAPIService.getEndpoint(API_PATHS.HEALTH),
 };
 
 export default API_ENDPOINTS; 

@@ -106,7 +106,7 @@ const DispatchScan: React.FC = () => {
   const fetchPlatformStats = async () => {
     try {
       setLoadingStats(true);
-      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS}?scan_type=dispatch`, {
+      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS()}?scan_type=dispatch`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ const DispatchScan: React.FC = () => {
   const fetchRecentScans = async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`${API_ENDPOINTS.RECENT_SCANS}?scan_type=dispatch&page=${currentPage}&limit=${itemsPerPage}`, {
+      const response = await fetch(`${API_ENDPOINTS.RECENT_SCANS()}?scan_type=dispatch&page=${currentPage}&limit=${itemsPerPage}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -216,7 +216,7 @@ const DispatchScan: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(API_ENDPOINTS.DISPATCH_SCAN, {
+      const response = await fetch(API_ENDPOINTS.DISPATCH_SCAN(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

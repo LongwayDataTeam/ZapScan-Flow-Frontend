@@ -93,7 +93,7 @@ const LabelScan: React.FC = () => {
   const fetchPlatformStats = useCallback(async () => {
     try {
       setLoadingStats(true);
-      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS}?scan_type=label`, {
+      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS()}?scan_type=label`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ const LabelScan: React.FC = () => {
   const fetchRecentScans = useCallback(async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`${API_ENDPOINTS.RECENT_LABEL_SCANS}?page=${currentPage}&limit=${itemsPerPage}`, {
+      const response = await fetch(`${API_ENDPOINTS.RECENT_LABEL_SCANS()}?page=${currentPage}&limit=${itemsPerPage}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +220,7 @@ const LabelScan: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(API_ENDPOINTS.LABEL_SCAN, {
+      const response = await fetch(API_ENDPOINTS.LABEL_SCAN(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -321,7 +321,7 @@ const LabelScan: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(API_ENDPOINTS.LABEL_SCAN, {
+      const response = await fetch(API_ENDPOINTS.LABEL_SCAN(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

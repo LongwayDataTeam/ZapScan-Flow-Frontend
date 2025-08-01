@@ -72,7 +72,7 @@ const TrackerStatusPage: React.FC = () => {
 
   const fetchTrackers = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.ALL_TRACKERS);
+      const response = await fetch(API_ENDPOINTS.ALL_TRACKERS());
       if (response.ok) {
         const data = await response.json();
         setTrackers(data.trackers || []);
@@ -86,7 +86,7 @@ const TrackerStatusPage: React.FC = () => {
 
   const fetchTrackingStats = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.TRACKING_STATS);
+      const response = await fetch(API_ENDPOINTS.TRACKING_STATS());
       if (response.ok) {
         const data = await response.json();
         setTrackingStats(data);

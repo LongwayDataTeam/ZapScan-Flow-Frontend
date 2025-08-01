@@ -113,7 +113,7 @@ const PackingScan: React.FC = () => {
   const fetchPlatformStats = async () => {
     try {
       setLoadingStats(true);
-      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS}?scan_type=packing`, {
+      const response = await fetch(`${API_ENDPOINTS.PLATFORM_STATS()}?scan_type=packing`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ const PackingScan: React.FC = () => {
   const fetchRecentScans = async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`${API_ENDPOINTS.RECENT_SCANS}?scan_type=packing&page=${currentPage}&limit=${itemsPerPage}`, {
+      const response = await fetch(`${API_ENDPOINTS.RECENT_SCANS()}?scan_type=packing&page=${currentPage}&limit=${itemsPerPage}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -256,7 +256,7 @@ const PackingScan: React.FC = () => {
     setError('');
 
     try {
-              const response = await fetch(API_ENDPOINTS.PACKING_DUAL_SCAN, {
+              const response = await fetch(API_ENDPOINTS.PACKING_DUAL_SCAN(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

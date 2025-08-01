@@ -15,7 +15,6 @@ const Sidebar: React.FC = () => {
     { name: 'Dashboard', href: '/', icon: HomeIcon },
     { name: 'Products', href: '/products', icon: CubeIcon },
     { name: 'Upload', href: '/upload', icon: CloudArrowUpIcon },
-    { name: 'Tracker Status', href: '/tracker-status', icon: ChartBarIcon },
     { name: 'Label Scan', href: '/scan/label', icon: QrCodeIcon },
     { name: 'Packing Scan', href: '/scan/packing', icon: QrCodeIcon },
     { name: 'Dispatch Scan', href: '/scan/dispatch', icon: QrCodeIcon },

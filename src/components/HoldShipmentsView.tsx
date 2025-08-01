@@ -48,7 +48,7 @@ const HoldShipmentsView: React.FC = () => {
       setLoading(true);
       setError('');
 
-      const response = await fetch(API_ENDPOINTS.ALL_HOLD_SHIPMENTS, {
+      const response = await fetch(API_ENDPOINTS.ALL_HOLD_SHIPMENTS(), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

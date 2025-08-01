@@ -65,7 +65,7 @@ const Dashboard: React.FC = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.DASHBOARD_STATS);
+      const response = await fetch(API_ENDPOINTS.DASHBOARD_STATS());
       if (response.ok) {
         const data = await response.json();
         setStats(data);
@@ -79,7 +79,7 @@ const Dashboard: React.FC = () => {
 
   const fetchTrackingStats = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.TRACKING_STATS);
+      const response = await fetch(API_ENDPOINTS.TRACKING_STATS());
       if (response.ok) {
         const data = await response.json();
         
@@ -122,9 +122,9 @@ const Dashboard: React.FC = () => {
   const fetchRecentActivity = async () => {
     try {
       // Fetch recent scans from all types using the new generic endpoint
-      const labelUrl = `${API_ENDPOINTS.RECENT_SCANS}?scan_type=label&page=1&limit=5`;
-      const packingUrl = `${API_ENDPOINTS.RECENT_SCANS}?scan_type=packing&page=1&limit=5`;
-      const dispatchUrl = `${API_ENDPOINTS.RECENT_SCANS}?scan_type=dispatch&page=1&limit=5`;
+      const labelUrl = `${API_ENDPOINTS.RECENT_SCANS()}?scan_type=label&page=1&limit=5`;
+      const packingUrl = `${API_ENDPOINTS.RECENT_SCANS()}?scan_type=packing&page=1&limit=5`;
+      const dispatchUrl = `${API_ENDPOINTS.RECENT_SCANS()}?scan_type=dispatch&page=1&limit=5`;
       
       const [labelResponse, packingResponse, dispatchResponse] = await Promise.all([
         fetch(labelUrl),
@@ -186,7 +186,7 @@ const Dashboard: React.FC = () => {
   const handleClearData = async () => {
     setClearLoading(true);
     try {
-      const response = await fetch(API_ENDPOINTS.CLEAR_DATA, {
+      const response = await fetch(API_ENDPOINTS.CLEAR_DATA(), {
         method: 'POST',
       });
       

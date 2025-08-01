@@ -48,7 +48,7 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
   const fetchRecentActivities = async () => {
     try {
       setLoadingActivities(true);
-      const response = await fetch(`${API_ENDPOINTS.PENDING_SHIPMENTS}?scan_type=${scanType}`, {
+      const response = await fetch(`${API_ENDPOINTS.PENDING_SHIPMENTS()}?scan_type=${scanType}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ const PendingShipmentTab: React.FC<PendingShipmentTabProps> = ({
     setError('');
 
     try {
-      const response = await fetch(API_ENDPOINTS.PENDING_SHIPMENT, {
+      const response = await fetch(API_ENDPOINTS.PENDING_SHIPMENT(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
