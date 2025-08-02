@@ -186,11 +186,11 @@ const PackingScan: React.FC = () => {
     }
   }, [currentPage, activeTab]);
 
-  // Auto-clear timer
+  // Auto-clear timer - FLASH MESSAGES (0.4 seconds total)
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (trackerCode && gCode && (success || error)) {
-      timer = setTimeout(() => {
+    if (success || error) {
+      // FLASH: Show message for 0.4 seconds then clear everything
+      const flashTimer = setTimeout(() => {
         setTrackerCode('');
         setGCode('');
         setSuccess(false);
@@ -199,16 +199,22 @@ const PackingScan: React.FC = () => {
         setShowDetails(false);
         setScanStep('tracker');
         
-        // Always return to tracker input after scan (success or error)
-        setTimeout(() => {
+        // ROBUST: Multiple focus attempts to ensure it works
+        const focusInput = () => {
           if (trackerInputRef.current) {
             trackerInputRef.current.focus();
           }
-        }, 50);
-      }, 1000);
+        };
+        
+        // Focus immediately after flash
+        focusInput();
+        setTimeout(focusInput, 10);
+        setTimeout(focusInput, 50);
+      }, 400); // 0.4 seconds flash duration
+      
+      return () => clearTimeout(flashTimer);
     }
-    return () => clearTimeout(timer);
-  }, [trackerCode, gCode, success, error]);
+  }, [success, error]);
 
   // Keep focus on appropriate input field
   useEffect(() => {
@@ -238,11 +244,9 @@ const PackingScan: React.FC = () => {
   // Additional focus management for successful scans
   useEffect(() => {
     if (success && scanStep === 'tracker') {
-      setTimeout(() => {
-        if (trackerInputRef.current) {
-          trackerInputRef.current.focus();
-        }
-      }, 100);
+      if (trackerInputRef.current) {
+        trackerInputRef.current.focus();
+      }
     }
   }, [success, scanStep]);
 
@@ -252,8 +256,16 @@ const PackingScan: React.FC = () => {
       return;
     }
 
+    const scannedTrackerCode = trackerCode.trim(); // Store the value immediately
+    const scannedGCode = gCode.trim(); // Store the value immediately
+    
+    setTrackerCode(''); // Clear input INSTANTLY
+    setGCode(''); // Clear input INSTANTLY
+    setLastScannedCode(''); // Clear last scanned code INSTANTLY
+    setError(''); // Clear previous errors INSTANTLY
+    setSuccess(false); // Clear previous success INSTANTLY
+
     setLoading(true);
-    setError('');
 
     try {
               const response = await fetch(API_ENDPOINTS.PACKING_DUAL_SCAN(), {
@@ -262,8 +274,8 @@ const PackingScan: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tracker_code: trackerCode.trim(),
-          product_code: gCode.trim()
+          tracker_code: scannedTrackerCode, // Use the stored value
+          product_code: scannedGCode // Use the stored value
         }),
       });
 
@@ -272,44 +284,57 @@ const PackingScan: React.FC = () => {
       if (response.ok) {
         // Handle successful dual scan
         setSuccess(true);
-        setTrackerCode('');
-        setGCode('');
         setTrackerDetails(null);
         setShowDetails(false);
-        setScanStep('tracker');
         setSelectedSkuName('');
-        setLastScannedCode(''); // Clear last scanned code on success
-        setTimeout(() => setSuccess(false), 3000);
+        // FLASH: Success will be cleared by useEffect after 0.4 seconds
+        
+        // Update multi-SKU progress if we're in multi-SKU mode
+        if (multiSkuProgress && multiSkuProgress.remaining > 0) {
+          setMultiSkuProgress(prev => prev ? {
+            ...prev,
+            scanned: prev.scanned + 1,
+            remaining: prev.remaining - 1
+          } : null);
+        }
         
         // Refresh data after successful scan
         fetchPlatformStats();
         fetchRecentScans();
         
-        // Focus tracker input for next scan
-        setTimeout(() => {
+        // SMART FOCUS MANAGEMENT: Check if we're in multi-SKU mode
+        // If we have multi-SKU progress and there are remaining SKUs, stay on G-code
+        // Otherwise, go back to tracker input
+        if (multiSkuProgress && multiSkuProgress.remaining > 0) {
+          // Multi-SKU mode with remaining SKUs - stay on G-code input
+          setScanStep('gcode');
+          if (gCodeInputRef.current) {
+            gCodeInputRef.current.focus();
+          }
+        } else {
+          // Single SKU or all SKUs completed - go back to tracker input
+          setScanStep('tracker');
+          // Clear multi-SKU progress when all SKUs are completed
+          setMultiSkuProgress(null);
           if (trackerInputRef.current) {
             trackerInputRef.current.focus();
           }
-        }, 100);
+        }
       } else {
         setError(data.detail || 'Packing scan failed');
         // Reset to tracker input on error
         setScanStep('tracker');
-        setTimeout(() => {
-          if (trackerInputRef.current) {
-            trackerInputRef.current.focus();
-          }
-        }, 100);
+        if (trackerInputRef.current) {
+          trackerInputRef.current.focus();
+        }
       }
     } catch (error) {
       setError('Network error. Please try again.');
       // Reset to tracker input on error
       setScanStep('tracker');
-      setTimeout(() => {
-        if (trackerInputRef.current) {
-          trackerInputRef.current.focus();
-        }
-      }, 100);
+      if (trackerInputRef.current) {
+        trackerInputRef.current.focus();
+      }
     } finally {
       setLoading(false);
     }
@@ -349,25 +374,25 @@ const PackingScan: React.FC = () => {
         clearTimeout(scanTimeout);
       }
       
-      // Set the clean value and debounce the scan
+      // Set the clean value and INSTANT scan
       setTrackerCode(cleanValue);
       setLastScannedCode(cleanValue);
       
-      const newTimeout = setTimeout(() => {
-        handleTrackerScan();
-      }, 200); // Increased debounce time to 200ms
-      
-      setScanTimeout(newTimeout);
+      // INSTANT: No delay for instant response
+      handleTrackerScan();
     }
     
     // Auto-scan when tracking ID is complete (typically 12-15 digits)
+    // Only trigger if we have a complete barcode without line breaks
     if (value.length >= 12 && !value.includes('\n') && !value.includes('\r')) {
-      // Wait a bit to see if more data is coming (barcode scanner might send data in chunks)
-      setTimeout(() => {
+      // Small delay to ensure full barcode is captured
+      const newTimeout = setTimeout(() => {
         if (trackerCode === value && value.length >= 12) {
           handleTrackerScan();
         }
-      }, 200);
+      }, 100); // Small delay to ensure full barcode capture
+      
+      setScanTimeout(newTimeout);
     }
   };
 
@@ -424,11 +449,9 @@ const PackingScan: React.FC = () => {
           // Clear tracker code and focus G-Code input
           setTrackerCode('');
           setScanStep('gcode');
-          setTimeout(() => {
-            if (gCodeInputRef.current) {
-              gCodeInputRef.current.focus();
-            }
-          }, 100);
+          if (gCodeInputRef.current) {
+            gCodeInputRef.current.focus();
+          }
         } else {
           // Single SKU order - normal behavior
           setTrackerDetails({
@@ -443,31 +466,25 @@ const PackingScan: React.FC = () => {
           setShowDetails(true);
           setTrackerCode('');
           setScanStep('gcode');
-          setTimeout(() => {
-            if (gCodeInputRef.current) {
-              gCodeInputRef.current.focus();
-            }
-          }, 100);
+          if (gCodeInputRef.current) {
+            gCodeInputRef.current.focus();
+          }
         }
       } else {
         setError(data.detail || 'Tracker not found');
         // Reset to tracker input on error
         setScanStep('tracker');
-        setTimeout(() => {
-          if (trackerInputRef.current) {
-            trackerInputRef.current.focus();
-          }
-        }, 100);
+        if (trackerInputRef.current) {
+          trackerInputRef.current.focus();
+        }
       }
     } catch (error) {
       setError('Network error. Please try again.');
       // Reset to tracker input on error
       setScanStep('tracker');
-      setTimeout(() => {
-        if (trackerInputRef.current) {
-          trackerInputRef.current.focus();
-        }
-      }, 100);
+      if (trackerInputRef.current) {
+        trackerInputRef.current.focus();
+      }
     } finally {
       setLoading(false);
     }
@@ -477,18 +494,26 @@ const PackingScan: React.FC = () => {
     const value = e.target.value;
     setGCode(value);
     
-    // Auto-scan when G-Code/EAN is entered (with or without line breaks)
-    if (value.length >= 6) { // Most G-Codes/EAN codes are at least 6 characters
-      const cleanValue = value.replace(/[\r\n]/g, '');
-      setGCode(cleanValue);
-      setTimeout(() => handleDualScan(), 100);
-    }
-    
-    // Auto-scan when barcode data is entered (typically ends with Enter)
+    // Auto-scan when G-Code/EAN is entered (with line breaks - typical barcode scanner)
     if (value.includes('\n') || value.includes('\r')) {
       const cleanValue = value.replace(/[\r\n]/g, '');
       setGCode(cleanValue);
-      setTimeout(() => handleDualScan(), 100);
+      // Small delay to ensure full barcode is captured
+      setTimeout(() => {
+        handleDualScan();
+      }, 50); // Small delay to ensure full barcode capture
+    }
+    
+    // Auto-scan when G-Code/EAN is complete (typically 8-13 digits for EAN)
+    if (value.length >= 8 && !value.includes('\n') && !value.includes('\r')) {
+      // Small delay to ensure full barcode is captured
+      const newTimeout = setTimeout(() => {
+        if (gCode === value && value.length >= 8) {
+          handleDualScan();
+        }
+      }, 100); // Small delay to ensure full barcode capture
+      
+      setScanTimeout(newTimeout);
     }
   };
 
@@ -568,7 +593,7 @@ const PackingScan: React.FC = () => {
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('normal')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium ${
                 activeTab === 'normal'
                   ? 'bg-white text-green-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -582,7 +607,7 @@ const PackingScan: React.FC = () => {
             
             <button
               onClick={handleSwitchToPending}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium ${
                 activeTab === 'pending'
                   ? 'bg-white text-orange-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -625,9 +650,16 @@ const PackingScan: React.FC = () => {
                       onChange={handleTrackerInputChange}
                       onKeyPress={handleKeyPress}
                       placeholder="SCAN TRACKER CODE (AUTO UPPERCASE)"
-                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-uppercase"
+                      className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-lg font-bold text-center tracking-wider bg-white shadow-sm hover:border-green-400"
                       disabled={loading}
                       autoFocus
+                      autoComplete="off"
+                      spellCheck="false"
+                      style={{ 
+                        fontSize: '18px',
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase'
+                      }}
                     />
                   </div>
 
@@ -643,8 +675,15 @@ const PackingScan: React.FC = () => {
                       onChange={handleGCodeInputChange}
                       onKeyPress={handleKeyPress}
                       placeholder="SCAN G-CODE (AUTO UPPERCASE)"
-                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-uppercase"
+                      className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-lg font-bold text-center tracking-wider bg-white shadow-sm hover:border-green-400"
                       disabled={loading}
+                      autoComplete="off"
+                      spellCheck="false"
+                      style={{ 
+                        fontSize: '18px',
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase'
+                      }}
                     />
                   </div>
 
@@ -659,7 +698,7 @@ const PackingScan: React.FC = () => {
                       </div>
                       <div className="w-full bg-green-200 rounded-full h-2">
                         <div 
-                          className="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                          className="bg-green-600 h-2 rounded-full" 
                           style={{ width: `${getProgressPercentage(multiSkuProgress.scanned, multiSkuProgress.total)}%` }}
                         ></div>
                       </div>
@@ -682,7 +721,7 @@ const PackingScan: React.FC = () => {
 
                   <button
                     onClick={resetForm}
-                    className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                    className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
                   >
                     Reset
                   </button>

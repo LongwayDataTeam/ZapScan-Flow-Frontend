@@ -113,14 +113,86 @@ const CancelledShipmentTab: React.FC<CancelledShipmentTabProps> = ({
     fetchRecentActivities();
   }, [currentPage]);
 
+  // Auto-clear timer - FLASH MESSAGES (0.3 seconds total) for cancelled shipments
+  useEffect(() => {
+    if (success || error) {
+      // FLASH: Show message for 0.3 seconds then clear everything
+      const flashTimer = setTimeout(() => {
+        setTrackerCode('');
+        setSuccess(false);
+        setError('');
+        
+        // ROBUST: Multiple focus attempts to ensure it works
+        const focusInput = () => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        };
+        
+        // Focus immediately after flash
+        focusInput();
+        setTimeout(focusInput, 10);
+        setTimeout(focusInput, 50);
+      }, 300); // 0.3 seconds flash duration
+      
+      return () => clearTimeout(flashTimer);
+    }
+  }, [success, error]);
+
+  // Keep focus on input field - ENHANCED for cancelled shipments
+  useEffect(() => {
+    const handleClick = () => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus on any key press if not already focused
+      if (document.activeElement !== inputRef.current) {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }
+    };
+
+    // Focus on mount
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+
+    // Add multiple event listeners to ensure focus
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Additional focus effect when loading state changes
+  useEffect(() => {
+    if (!loading) {
+      // Focus when loading completes
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }
+  }, [loading]);
+
   const handleScan = async () => {
     if (!trackerCode.trim()) {
       setError('Please enter tracker code');
       return;
     }
 
+    const scannedCode = trackerCode.trim(); // Store the value immediately
+    setTrackerCode(''); // Clear input INSTANTLY
+    setError(''); // Clear previous errors INSTANTLY
+    setSuccess(false); // Clear previous success INSTANTLY
+
     setLoading(true);
-    setError('');
 
     try {
       const response = await fetch(API_ENDPOINTS.CANCELLED_SHIPMENT(), {
@@ -129,7 +201,7 @@ const CancelledShipmentTab: React.FC<CancelledShipmentTabProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tracker_code: trackerCode.trim(),
+          tracker_code: scannedCode, // Use the stored value
           scan_type: scanType
         }),
       });
@@ -138,23 +210,45 @@ const CancelledShipmentTab: React.FC<CancelledShipmentTabProps> = ({
 
       if (response.ok) {
         setSuccess(true);
-        setTrackerCode('');
-        setTimeout(() => setSuccess(false), 3000);
+        // FLASH: Success will be cleared by useEffect after 0.3 seconds
         
         // Refresh activities after successful scan
         fetchRecentActivities();
         
-        // Focus input for next scan
-        setTimeout(() => {
+        // ROBUST: Multiple focus attempts after successful scan
+        const focusAfterSuccess = () => {
           if (inputRef.current) {
             inputRef.current.focus();
           }
-        }, 100);
+        };
+        focusAfterSuccess();
+        setTimeout(focusAfterSuccess, 10);
+        setTimeout(focusAfterSuccess, 50);
       } else {
         setError(data.detail || 'Failed to cancel shipment');
+        
+        // ROBUST: Multiple focus attempts after error
+        const focusAfterError = () => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        };
+        focusAfterError();
+        setTimeout(focusAfterError, 10);
+        setTimeout(focusAfterError, 50);
       }
     } catch (error) {
       setError('Network error. Please try again.');
+      
+      // ROBUST: Multiple focus attempts after network error
+      const focusAfterNetworkError = () => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      };
+      focusAfterNetworkError();
+      setTimeout(focusAfterNetworkError, 10);
+      setTimeout(focusAfterNetworkError, 50);
     } finally {
       setLoading(false);
     }
@@ -170,11 +264,24 @@ const CancelledShipmentTab: React.FC<CancelledShipmentTabProps> = ({
     const value = e.target.value.toUpperCase();
     setTrackerCode(value);
     
-    // Auto-scan when barcode data is entered
-    if (value.length > 5 && (value.includes('\n') || value.includes('\r'))) {
+    // Auto-scan when barcode data is entered (with line breaks - typical barcode scanner)
+    if (value.includes('\n') || value.includes('\r')) {
       const cleanValue = value.replace(/[\r\n]/g, '');
       setTrackerCode(cleanValue);
-      setTimeout(() => handleScan(), 100);
+      // Small delay to ensure full barcode is captured
+      setTimeout(() => {
+        handleScan();
+      }, 50); // Small delay to ensure full barcode capture
+    }
+    
+    // Auto-scan when tracking ID is complete (typically 12-15 digits)
+    if (value.length >= 12 && !value.includes('\n') && !value.includes('\r')) {
+      // Small delay to ensure full barcode is captured
+      setTimeout(() => {
+        if (trackerCode === value && value.length >= 12) {
+          handleScan();
+        }
+      }, 100); // Small delay to ensure full barcode capture
     }
   };
 

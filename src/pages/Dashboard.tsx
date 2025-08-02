@@ -214,10 +214,10 @@ const Dashboard: React.FC = () => {
         window.location.href = '/products';
         break;
       case 'label-scan':
-        window.location.href = '/scanning/label';
+        window.location.href = '/scan/label';
         break;
       case 'tracker-status':
-        window.location.href = '/tracker-status';
+        window.location.href = '/upload';
         break;
       case 'hold-shipments':
         window.location.href = '/hold-shipments';

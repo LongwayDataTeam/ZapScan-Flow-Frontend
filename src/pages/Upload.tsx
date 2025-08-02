@@ -47,12 +47,16 @@ const Upload: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadProgress, setUploadProgress] = useState(0);
   const [processingData, setProcessingData] = useState(false);
+  const [currentChunk, setCurrentChunk] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
      const [uploadMode, setUploadMode] = useState<'simple' | 'detailed'>('detailed');
-   const [duplicateHandling, setDuplicateHandling] = useState<'allow' | 'skip' | 'update'>('allow');
+    const [duplicateHandling, setDuplicateHandling] = useState<'allow' | 'skip' | 'update'>('allow');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showCompleteClearConfirm, setShowCompleteClearConfirm] = useState(false);
   const [clearLoading, setClearLoading] = useState(false);
+  const [completeClearLoading, setCompleteClearLoading] = useState(false);
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState(0);
 
   useEffect(() => {
@@ -122,6 +126,42 @@ const Upload: React.FC = () => {
     }
   };
 
+  const handleCompleteClearData = async () => {
+    setCompleteClearLoading(true);
+    try {
+      // Clear ALL data from local backend (including pending shipments)
+      const response = await fetch(API_ENDPOINTS.CLEAR_ALL_DATA(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Complete data cleared:', data);
+        
+        // Refresh data after clearing
+        await fetchUploadedTrackers();
+        await fetchTrackingStats();
+        
+        // Hide confirmation dialog
+        setShowCompleteClearConfirm(false);
+        
+        // Show success message
+        alert('ALL data cleared completely (including pending shipments)!');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to clear all data: ${errorData.detail || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error clearing all data:', error);
+      alert('Failed to clear all data. Please try again.');
+    } finally {
+      setCompleteClearLoading(false);
+    }
+  };
+
   const handleSimpleUpload = async () => {
     if (!trackerCodes.trim()) {
       setError('Please enter tracker codes');
@@ -185,6 +225,8 @@ const Upload: React.FC = () => {
     setLoading(true);
     setProcessingData(true);
     setUploadProgress(0);
+    setCurrentChunk(0);
+    setTotalChunks(0);
     setError('');
 
     try {
@@ -207,9 +249,11 @@ const Upload: React.FC = () => {
       
       const trackers: TrackerData[] = [];
       
-      // Process data in chunks to avoid blocking the UI
-      const chunkSize = 1000;
+      // ULTRA-OPTIMIZED: Process data in very small chunks for instant feedback
+      const chunkSize = 50; // Reduced from 100 for faster processing
       const totalLines = lines.length - 1;
+      
+      console.log(`🚀 Starting ultra-optimized upload processing for ${totalLines} lines`);
       
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(separator);
@@ -240,10 +284,12 @@ const Upload: React.FC = () => {
           }
         }
         
-        // Update progress every 1000 records
+        // ULTRA-OPTIMIZED: Update progress more frequently for instant feedback
         if (i % chunkSize === 0) {
           const progress = Math.min(50, Math.round((i / totalLines) * 50));
           setUploadProgress(progress);
+          console.log(`📊 Processing progress: ${progress}% (${i}/${totalLines} lines)`);
+          // Use immediate promise resolution for fastest UI updates
           await new Promise(resolve => setTimeout(resolve, 0));
         }
       }
@@ -255,57 +301,90 @@ const Upload: React.FC = () => {
         return;
       }
 
+      console.log(`✅ Processing complete. ${trackers.length} valid trackers found`);
+
       // Switch to upload phase
       setProcessingData(false);
       setUploadProgress(50);
 
-      // Upload to local backend with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
+      // ULTRA-OPTIMIZED: Upload in much smaller chunks for faster processing
+      const uploadChunkSize = 100; // Reduced from 500 for faster uploads
+      const totalChunks = Math.ceil(trackers.length / uploadChunkSize);
+      setTotalChunks(totalChunks);
+      let uploadedCount = 0;
 
-      try {
-        const localResponse = await fetch(`${API_ENDPOINTS.UPLOAD_DETAILED_TRACKERS()}?duplicate_handling=${duplicateHandling}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            trackers: trackers
-          }),
-          signal: controller.signal
-        });
+      console.log(`📤 Starting ultra-optimized chunked upload: ${totalChunks} chunks of ${uploadChunkSize} trackers each`);
 
-        clearTimeout(timeoutId);
-        setUploadProgress(100);
-        const localData = await localResponse.json();
+      // ULTRA-OPTIMIZED: Process chunks with minimal delays
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const startIndex = chunkIndex * uploadChunkSize;
+        const endIndex = Math.min(startIndex + uploadChunkSize, trackers.length);
+        const chunk = trackers.slice(startIndex, endIndex);
 
-        if (localResponse.ok) {
-          setUploadSuccess(true);
-          setTrackerCodes('');
-          
-          // Refresh data in background
-          Promise.all([
-            fetchUploadedTrackers(),
-            fetchTrackingStats()
-          ]).then(() => {
-            setTableRefreshTrigger(prev => prev + 1);
+        setCurrentChunk(chunkIndex + 1);
+        console.log(`📦 Uploading chunk ${chunkIndex + 1}/${totalChunks} (${chunk.length} trackers)`);
+
+        // Upload chunk to local backend with shorter timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout per chunk
+
+        try {
+          const localResponse = await fetch(`${API_ENDPOINTS.UPLOAD_DETAILED_TRACKERS()}?duplicate_handling=${duplicateHandling}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              trackers: chunk
+            }),
+            signal: controller.signal
           });
-          
-          // Reset success message after 3 seconds
-          setTimeout(() => setUploadSuccess(false), 3000);
-        } else {
-          setError(localData.detail || 'Upload failed');
+
+          clearTimeout(timeoutId);
+          const localData = await localResponse.json();
+
+          if (localResponse.ok) {
+            uploadedCount += chunk.length;
+            const uploadProgress = 50 + Math.round((uploadedCount / trackers.length) * 50);
+            setUploadProgress(uploadProgress);
+            console.log(`✅ Chunk ${chunkIndex + 1} uploaded successfully. Progress: ${uploadProgress}%`);
+          } else {
+            throw new Error(localData.detail || 'Upload failed');
+          }
+        } catch (fetchError: any) {
+          if (fetchError.name === 'AbortError') {
+            throw new Error(`Upload timed out at chunk ${chunkIndex + 1}. Please try with a smaller file.`);
+          } else {
+            throw fetchError;
+          }
         }
-      } catch (fetchError: any) {
-        if (fetchError.name === 'AbortError') {
-          setError('Upload timed out. Please try with a smaller file or check your connection.');
-        } else {
-          throw fetchError;
+
+        // ULTRA-OPTIMIZED: Minimal delay between chunks
+        if (chunkIndex < totalChunks - 1) {
+          await new Promise(resolve => setTimeout(resolve, 50)); // Reduced from 100ms
         }
       }
+
+      setUploadProgress(100);
+      console.log(`🎉 Upload complete! ${uploadedCount} trackers uploaded successfully`);
+
+      setUploadSuccess(true);
+      setTrackerCodes('');
+      
+      // Refresh data in background
+      Promise.all([
+        fetchUploadedTrackers(),
+        fetchTrackingStats()
+      ]).then(() => {
+        setTableRefreshTrigger(prev => prev + 1);
+      });
+      
+      // Reset success message after 3 seconds
+      setTimeout(() => setUploadSuccess(false), 3000);
+      
     } catch (error) {
       console.error('Upload error:', error);
-      setError('Network error. Please try again.');
+      setError(error instanceof Error ? error.message : 'Network error. Please try again.');
     } finally {
       setLoading(false);
       setProcessingData(false);
@@ -355,14 +434,24 @@ const Upload: React.FC = () => {
               <p className="text-gray-600">Upload tracker codes to start the fulfillment process</p>
             </div>
             
-            {/* Clear Data Button */}
-            <button
-              onClick={() => setShowClearConfirm(true)}
-              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              <TrashIcon className="h-5 w-5 mr-2" />
-              Clear & Move to Database
-            </button>
+            {/* Clear Data Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <TrashIcon className="h-5 w-5 mr-2" />
+                Clear & Move to Database
+              </button>
+              <button
+                onClick={() => setShowCompleteClearConfirm(true)}
+                className="flex items-center px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors"
+                title="Clear ALL data including pending shipments"
+              >
+                <TrashIcon className="h-5 w-5 mr-2" />
+                Complete Clear
+              </button>
+            </div>
           </div>
         </div>
 
@@ -401,6 +490,48 @@ const Upload: React.FC = () => {
                 <button
                   onClick={() => setShowClearConfirm(false)}
                   disabled={clearLoading}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Complete Clear Data Confirmation Modal */}
+        {showCompleteClearConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-center mb-4">
+                <ExclamationTriangleIcon className="h-6 w-6 text-red-800 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">Complete Data Clear</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                <strong className="text-red-800">⚠️ WARNING:</strong> This will clear ALL data including pending shipments. 
+                This action cannot be undone and will remove everything from the system. Are you absolutely sure?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCompleteClearData}
+                  disabled={completeClearLoading}
+                  className="flex-1 bg-red-800 text-white py-2 px-4 rounded-lg hover:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {completeClearLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Clearing ALL Data...
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="h-4 w-4 mr-2" />
+                      Clear Everything
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowCompleteClearConfirm(false)}
+                  disabled={completeClearLoading}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 disabled:opacity-50"
                 >
                   Cancel
@@ -468,21 +599,34 @@ const Upload: React.FC = () => {
                  )}
                </button>
 
-               {/* Progress Bar */}
-               {loading && (
-                 <div className="mt-4">
-                   <div className="flex justify-between text-sm text-gray-600 mb-1">
-                     <span>{processingData ? 'Processing data...' : 'Uploading to server...'}</span>
-                     <span>{uploadProgress}%</span>
-                   </div>
-                   <div className="w-full bg-gray-200 rounded-full h-2">
-                     <div 
-                       className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                       style={{ width: `${uploadProgress}%` }}
-                     ></div>
-                   </div>
-                 </div>
-               )}
+                               {/* Progress Bar */}
+                {loading && (
+                  <div className="mt-4">
+                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <span>
+                        {processingData ? 'Processing data...' : 'Uploading to server...'}
+                        {uploadProgress > 0 && uploadProgress < 100 && (
+                          <span className="ml-2 text-blue-600 font-medium">
+                            {uploadProgress}% complete
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-medium">{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        {processingData ? 'Parsing and validating data...' : 
+                         totalChunks > 0 ? `Uploading chunk ${currentChunk} of ${totalChunks}...` : 'Sending data to server...'}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               {/* Success/Error Messages */}
               {uploadSuccess && (

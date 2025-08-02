@@ -23,9 +23,9 @@ const API_PATHS = {
   UNHOLD_SHIPMENT: '/api/v1/scan/unhold/',
   
   // Recent Scans
-  RECENT_LABEL_SCANS: '/api/v1/scans/recent/?scan_type=label',
-  RECENT_PACKING_SCANS: '/api/v1/scans/recent/?scan_type=packing',
-  RECENT_DISPATCH_SCANS: '/api/v1/scans/recent/?scan_type=dispatch',
+  RECENT_LABEL_SCANS: '/api/v1/scan/recent/label',
+  RECENT_PACKING_SCANS: '/api/v1/scan/recent/packing',
+  RECENT_DISPATCH_SCANS: '/api/v1/scan/recent/dispatch',
   RECENT_SCANS: '/api/v1/scans/recent/',
   
   // Statistics
@@ -42,6 +42,7 @@ const API_PATHS = {
   
   // System
   CLEAR_DATA: '/api/v1/system/clear-data/',
+  CLEAR_ALL_DATA: '/api/v1/system/clear-all-data/',
   
   // Health
   HEALTH: '/health',
@@ -112,6 +113,7 @@ export const API_ENDPOINTS = {
   
   // System
   CLEAR_DATA: () => SecureAPIService.getEndpoint(API_PATHS.CLEAR_DATA),
+  CLEAR_ALL_DATA: () => SecureAPIService.getEndpoint(API_PATHS.CLEAR_ALL_DATA),
   
   // Health
   HEALTH: () => SecureAPIService.getEndpoint(API_PATHS.HEALTH),

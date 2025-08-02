@@ -119,26 +119,33 @@ const LabelScan: React.FC = () => {
   const fetchRecentScans = useCallback(async () => {
     try {
       setLoadingScans(true);
-      const response = await fetch(`${API_ENDPOINTS.RECENT_LABEL_SCANS()}?page=${currentPage}&limit=${itemsPerPage}`, {
+      const url = `${API_ENDPOINTS.RECENT_LABEL_SCANS()}?page=${currentPage}&limit=${itemsPerPage}`;
+      console.log('🔍 Fetching recent label scans from:', url);
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('📡 Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Received data:', data);
+        console.log('📋 Results count:', data.results?.length || 0);
         setRecentScans(data.results || []);
         setTotalScans(data.count || 0);
       } else {
-        console.error('Failed to fetch recent label scans:', response.status, response.statusText);
+        console.error('❌ Failed to fetch recent label scans:', response.status, response.statusText);
         const errorText = await response.text();
-        console.error('Error details:', errorText);
+        console.error('❌ Error details:', errorText);
         setRecentScans([]);
         setTotalScans(0);
       }
     } catch (error) {
-      console.error('Error fetching recent scans:', error);
+      console.error('❌ Error fetching recent scans:', error);
       setRecentScans([]);
       setTotalScans(0);
     } finally {
@@ -158,10 +165,16 @@ const LabelScan: React.FC = () => {
     }
   };
 
-  // Load data on component mount
+  // ULTRA-FAST: Load data on component mount - NON-BLOCKING
   useEffect(() => {
-    fetchPlatformStats();
-    fetchRecentScans();
+    console.log('🚀 LabelScan component mounted');
+    console.log('🔗 RECENT_LABEL_SCANS endpoint:', API_ENDPOINTS.RECENT_LABEL_SCANS());
+    
+    // ULTRA-FAST: Non-blocking data fetch to prevent UI delays
+    setTimeout(() => {
+      fetchPlatformStats();
+      fetchRecentScans();
+    }, 100); // Small delay to ensure UI is ready first
   }, []);
 
   // Refetch scans when page changes
@@ -169,40 +182,41 @@ const LabelScan: React.FC = () => {
     fetchRecentScans();
   }, [currentPage]);
 
-  // Auto-clear timer
+  // ULTRA-FAST: Auto-clear timer - FLASH MESSAGES (0.3 seconds total)
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (trackerCode && (success || error)) {
-      timer = setTimeout(() => {
+    if (success || error) {
+      // ULTRA-FAST: Show message for exactly 0.3 seconds then clear everything
+      const flashTimer = setTimeout(() => {
         setTrackerCode('');
         setSuccess(false);
         setError('');
         setTrackerDetails(null);
         setShowDetails(false);
         
-        // Only refocus after error, not after success
-        if (error && inputRef.current) {
+        // ULTRA-FAST: Single immediate focus after flash
+        if (inputRef.current) {
           inputRef.current.focus();
         }
-      }, 1000);
+      }, 300); // Exactly 0.3 seconds flash duration
+      
+      return () => clearTimeout(flashTimer);
     }
-    return () => clearTimeout(timer);
-  }, [trackerCode, success, error]);
+  }, [success, error]);
 
-  // Keep focus on input field
+  // ULTRA-FAST: Keep focus on input field - SIMPLIFIED for speed
   useEffect(() => {
+    // Focus on mount
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+
+    // Simple click handler for focus
     const handleClick = () => {
       if (inputRef.current) {
         inputRef.current.focus();
       }
     };
 
-    // Focus on mount
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-
-    // Add click listener to refocus
     document.addEventListener('click', handleClick);
     
     return () => {
@@ -210,14 +224,30 @@ const LabelScan: React.FC = () => {
     };
   }, []);
 
+  // ULTRA-FAST: Focus when loading completes
+  useEffect(() => {
+    if (!loading && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [loading]);
+
   const handleScan = async () => {
     if (!trackerCode.trim()) {
       setError('Please enter tracker code');
       return;
     }
 
+    const scannedCode = trackerCode.trim(); // Store the value immediately
+    
+    // ULTRA-FAST: Clear input and show flash INSTANTLY
+    setTrackerCode(''); // Clear input INSTANTLY
+    setLastScannedCode(''); // Clear last scanned code INSTANTLY
+    setError(''); // Clear previous errors INSTANTLY
+    setSuccess(false); // Clear previous success INSTANTLY
     setLoading(true);
-    setError('');
+
+    // ULTRA-FAST: Show success flash immediately for instant feedback
+    setSuccess(true);
 
     try {
       const response = await fetch(API_ENDPOINTS.LABEL_SCAN(), {
@@ -226,7 +256,7 @@ const LabelScan: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tracker_code: trackerCode,
+          tracker_code: scannedCode, // Use the stored value
           scan_type: 'label'
         }),
       });
@@ -241,7 +271,7 @@ const LabelScan: React.FC = () => {
             total: data.progress.total,
             scanned: data.progress.scanned,
             remaining: data.progress.total - data.progress.scanned,
-            trackingId: trackerCode,
+            trackingId: scannedCode,
             selectedSkuGCode: data.sku_scanned?.g_code,
             selectedSkuEanCode: data.sku_scanned?.ean_code,
             selectedSkuProductCode: data.sku_scanned?.product_sku_code
@@ -254,58 +284,42 @@ const LabelScan: React.FC = () => {
           // Check if all SKUs are scanned
           if (data.progress.scanned >= data.progress.total) {
             // All SKUs scanned - complete the order
-            setSuccess(true);
-            setTrackerCode('');
             setMultiSkuProgress(null);
             setSelectedSkuName('');
             setScanCountData(null);
-            setLastScannedCode(''); // Clear last scanned code to allow re-scanning
-            setTimeout(() => setSuccess(false), 3000);
-            // Refresh data after successful scan
-            fetchPlatformStats();
-            fetchRecentScans();
-            // Keep focus on input after successful scan
-            setTimeout(() => {
-              if (inputRef.current) {
-                inputRef.current.focus();
-              }
-            }, 100);
+            // Success flash is already shown - will be cleared by useEffect after 0.3 seconds
           } else {
             // More SKUs to scan - show progress with selected SKU name
-            setSuccess(true);
-            setTrackerCode('');
-            setLastScannedCode(''); // Clear last scanned code to allow re-scanning
             // Fetch updated scan count data
-            fetchScanCountData(trackerCode);
-            setTimeout(() => setSuccess(false), 2000);
-            // Keep focus on input for next SKU scan
-            setTimeout(() => {
-              if (inputRef.current) {
-                inputRef.current.focus();
-              }
-            }, 100);
+            fetchScanCountData(scannedCode);
+            // Success flash is already shown - will be cleared by useEffect after 0.3 seconds
           }
         } else {
           // Single SKU order or old format - normal behavior
-          setSuccess(true);
-          setTrackerCode('');
-          setLastScannedCode(''); // Clear last scanned code
-          setTimeout(() => setSuccess(false), 3000);
-          // Refresh data after successful scan
-          fetchPlatformStats();
-          fetchRecentScans();
-          // Keep focus on input after successful scan
-          setTimeout(() => {
-            if (inputRef.current) {
-              inputRef.current.focus();
-            }
-          }, 100);
+          // Success flash is already shown - will be cleared by useEffect after 0.3 seconds
+        }
+        
+        // ULTRA-FAST: Immediate focus after success
+        if (inputRef.current) {
+          inputRef.current.focus();
         }
       } else {
+        // ULTRA-FAST: Show error flash immediately
+        setSuccess(false);
         setError(data.detail || 'Label scan failed');
+        // ULTRA-FAST: Immediate focus after error
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
       }
     } catch (error) {
+      // ULTRA-FAST: Show error flash immediately
+      setSuccess(false);
       setError('Network error. Please try again.');
+      // ULTRA-FAST: Immediate focus after network error
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
     } finally {
       setLoading(false);
     }
@@ -344,13 +358,30 @@ const LabelScan: React.FC = () => {
         fetchPlatformStats();
         fetchRecentScans();
         
-        // Reset success message after 3 seconds
-        setTimeout(() => setSuccess(false), 3000);
+        // FLASH: Success will be cleared by useEffect after 0.3 seconds
       } else {
         setError(data.detail || 'Scan failed');
+        // ROBUST: Multiple focus attempts after error
+        const focusAfterProcessError = () => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        };
+        focusAfterProcessError();
+        setTimeout(focusAfterProcessError, 10);
+        setTimeout(focusAfterProcessError, 50);
       }
     } catch (error) {
       setError('Network error. Please try again.');
+      // ROBUST: Multiple focus attempts after network error
+      const focusAfterProcessNetworkError = () => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      };
+      focusAfterProcessNetworkError();
+      setTimeout(focusAfterProcessNetworkError, 10);
+      setTimeout(focusAfterProcessNetworkError, 50);
     } finally {
       setLoading(false);
     }
@@ -366,7 +397,7 @@ const LabelScan: React.FC = () => {
     const value = e.target.value.toUpperCase(); // Convert to uppercase
     setTrackerCode(value);
     
-    // Auto-scan when barcode data is entered (typically ends with Enter or is a complete barcode)
+    // ULTRA-FAST: Auto-scan when barcode data is entered (typically ends with Enter or is a complete barcode)
     if (value.length > 5 && (value.includes('\n') || value.includes('\r'))) {
       // Remove any line breaks and get clean value
       const cleanValue = value.replace(/[\r\n]/g, '');
@@ -381,15 +412,12 @@ const LabelScan: React.FC = () => {
         clearTimeout(scanTimeout);
       }
       
-      // Set the clean value and debounce the scan
+      // ULTRA-FAST: Set the clean value and INSTANT scan
       setTrackerCode(cleanValue);
       setLastScannedCode(cleanValue);
       
-      const newTimeout = setTimeout(() => {
-        handleScan();
-      }, 200); // Increased debounce time to 200ms
-      
-      setScanTimeout(newTimeout);
+      // ULTRA-FAST: Immediate scan without any delays
+      handleScan();
     }
   };
 
@@ -455,17 +483,24 @@ const LabelScan: React.FC = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Tracker Code
               </label>
-              <input
-                ref={inputRef}
-                type="text"
-                value={trackerCode}
-                onChange={handleInputChange}
-                onKeyPress={handleKeyPress}
-                placeholder="SCAN OR ENTER TRACKER CODE (AUTO UPPERCASE)"
-                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-uppercase"
-                disabled={loading}
-                autoFocus
-              />
+                             <input
+                 ref={inputRef}
+                 type="text"
+                 value={trackerCode}
+                 onChange={handleInputChange}
+                 onKeyPress={handleKeyPress}
+                 placeholder="SCAN OR ENTER TRACKER CODE (AUTO UPPERCASE)"
+                 className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-lg font-bold text-center tracking-wider bg-white shadow-sm hover:border-blue-400"
+                 disabled={loading}
+                 autoFocus
+                 autoComplete="off"
+                 spellCheck="false"
+                 style={{ 
+                   fontSize: '18px',
+                   letterSpacing: '2px',
+                   textTransform: 'uppercase'
+                 }}
+               />
             </div>
 
             {/* Multi-SKU Progress Indicator */}
@@ -479,7 +514,7 @@ const LabelScan: React.FC = () => {
                 </div>
                 <div className="w-full bg-blue-200 rounded-full h-2">
                   <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                    className="bg-blue-600 h-2 rounded-full" 
                     style={{ width: `${getProgressPercentage(multiSkuProgress.scanned, multiSkuProgress.total)}%` }}
                   ></div>
                 </div>
@@ -518,10 +553,10 @@ const LabelScan: React.FC = () => {
                       <span>{scanCountData.label_scanned}/{scanCountData.total_sku_count}</span>
                     </div>
                     <div className="w-full bg-green-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-600 h-2 rounded-full transition-all duration-300" 
-                        style={{ width: `${getProgressPercentage(scanCountData.label_scanned, scanCountData.total_sku_count)}%` }}
-                      ></div>
+                                             <div 
+                         className="bg-green-600 h-2 rounded-full" 
+                         style={{ width: `${getProgressPercentage(scanCountData.label_scanned, scanCountData.total_sku_count)}%` }}
+                       ></div>
                     </div>
                   </div>
                   
@@ -531,10 +566,10 @@ const LabelScan: React.FC = () => {
                       <span>{scanCountData.packing_scanned}/{scanCountData.total_sku_count}</span>
                     </div>
                     <div className="w-full bg-green-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-600 h-2 rounded-full transition-all duration-300" 
-                        style={{ width: `${getProgressPercentage(scanCountData.packing_scanned, scanCountData.total_sku_count)}%` }}
-                      ></div>
+                                             <div 
+                         className="bg-green-600 h-2 rounded-full" 
+                         style={{ width: `${getProgressPercentage(scanCountData.packing_scanned, scanCountData.total_sku_count)}%` }}
+                       ></div>
                     </div>
                   </div>
                   
@@ -544,10 +579,10 @@ const LabelScan: React.FC = () => {
                       <span>{scanCountData.dispatch_scanned}/{scanCountData.total_sku_count}</span>
                     </div>
                     <div className="w-full bg-green-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-600 h-2 rounded-full transition-all duration-300" 
-                        style={{ width: `${getProgressPercentage(scanCountData.dispatch_scanned, scanCountData.total_sku_count)}%` }}
-                      ></div>
+                                             <div 
+                         className="bg-green-600 h-2 rounded-full" 
+                         style={{ width: `${getProgressPercentage(scanCountData.dispatch_scanned, scanCountData.total_sku_count)}%` }}
+                       ></div>
                     </div>
                   </div>
                 </div>
@@ -592,10 +627,10 @@ const LabelScan: React.FC = () => {
               </button>
             )}
 
-            <button
-              onClick={resetForm}
-              className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-            >
+                         <button
+               onClick={resetForm}
+               className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+             >
               Reset
             </button>
 

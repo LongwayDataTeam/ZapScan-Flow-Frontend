@@ -165,25 +165,33 @@ const DispatchScan: React.FC = () => {
     }
   }, [currentPage, activeTab]);
 
-  // Auto-clear timer
+  // Auto-clear timer - FLASH MESSAGES (0.4 seconds total)
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (trackerCode && (success || error)) {
-      timer = setTimeout(() => {
+    if (success || error) {
+      // FLASH: Show message for 0.4 seconds then clear everything
+      const flashTimer = setTimeout(() => {
         setTrackerCode('');
         setSuccess(false);
         setError('');
         setTrackerDetails(null);
         setShowDetails(false);
         
-        // Only refocus after error, not after success
-        if (error && inputRef.current) {
-          inputRef.current.focus();
-        }
-      }, 1000);
+        // ROBUST: Multiple focus attempts to ensure it works
+        const focusInput = () => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        };
+        
+        // Focus immediately after flash
+        focusInput();
+        setTimeout(focusInput, 10);
+        setTimeout(focusInput, 50);
+      }, 400); // 0.4 seconds flash duration
+      
+      return () => clearTimeout(flashTimer);
     }
-    return () => clearTimeout(timer);
-  }, [trackerCode, success, error]);
+  }, [success, error]);
 
   // Keep focus on input field
   useEffect(() => {
@@ -212,8 +220,13 @@ const DispatchScan: React.FC = () => {
       return;
     }
 
+    const scannedCode = trackerCode.trim(); // Store the value immediately
+    setTrackerCode(''); // Clear input INSTANTLY
+    setLastScannedCode(''); // Clear last scanned code INSTANTLY
+    setError(''); // Clear previous errors INSTANTLY
+    setSuccess(false); // Clear previous success INSTANTLY
+
     setLoading(true);
-    setError('');
 
     try {
       const response = await fetch(API_ENDPOINTS.DISPATCH_SCAN(), {
@@ -222,7 +235,7 @@ const DispatchScan: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tracker_code: trackerCode,
+          tracker_code: scannedCode, // Use the stored value
           scan_type: 'dispatch'
         }),
       });
@@ -237,7 +250,7 @@ const DispatchScan: React.FC = () => {
             total: data.progress.total,
             scanned: data.progress.scanned,
             remaining: data.progress.total - data.progress.scanned,
-            trackingId: trackerCode,
+            trackingId: scannedCode,
             selectedSkuGCode: data.sku_scanned?.g_code,
             selectedSkuEanCode: data.sku_scanned?.ean_code,
             selectedSkuProductCode: data.sku_scanned?.product_sku_code
@@ -251,54 +264,58 @@ const DispatchScan: React.FC = () => {
           if (data.progress.scanned >= data.progress.total) {
             // All SKUs scanned - complete the order
             setSuccess(true);
-            setTrackerCode('');
             setMultiSkuProgress(null);
             setSelectedSkuName('');
-            setLastScannedCode(''); // Clear last scanned code to allow re-scanning
-            setTimeout(() => setSuccess(false), 3000);
+            // FLASH: Success will be cleared by useEffect after 0.4 seconds
             // Refresh data after successful scan
             fetchPlatformStats();
             fetchRecentScans();
-            // Keep focus on input after successful scan
-            setTimeout(() => {
-              if (inputRef.current) {
-                inputRef.current.focus();
-              }
-            }, 100);
           } else {
             // More SKUs to scan - show progress
             setSuccess(true);
-            setTrackerCode('');
-            setLastScannedCode(''); // Clear last scanned code to allow re-scanning
-            setTimeout(() => setSuccess(false), 2000);
-            // Keep focus on input for next SKU scan
-            setTimeout(() => {
-              if (inputRef.current) {
-                inputRef.current.focus();
-              }
-            }, 100);
+            // FLASH: Success will be cleared by useEffect after 0.4 seconds
           }
         } else {
           // Single SKU order or old format - normal behavior
           setSuccess(true);
-          setTrackerCode('');
-          setLastScannedCode(''); // Clear last scanned code
-          setTimeout(() => setSuccess(false), 3000);
+          // FLASH: Success will be cleared by useEffect after 0.4 seconds
           // Refresh data after successful scan
           fetchPlatformStats();
           fetchRecentScans();
-          // Keep focus on input after successful scan
-          setTimeout(() => {
-            if (inputRef.current) {
-              inputRef.current.focus();
-            }
-          }, 100);
         }
+        
+        // ROBUST: Multiple focus attempts after successful scan
+        const focusAfterSuccess = () => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        };
+        focusAfterSuccess();
+        setTimeout(focusAfterSuccess, 10);
+        setTimeout(focusAfterSuccess, 50);
       } else {
         setError(data.detail || 'Dispatch scan failed');
+        // ROBUST: Multiple focus attempts after error
+        const focusAfterError = () => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        };
+        focusAfterError();
+        setTimeout(focusAfterError, 10);
+        setTimeout(focusAfterError, 50);
       }
     } catch (error) {
       setError('Network error. Please try again.');
+      // ROBUST: Multiple focus attempts after network error
+      const focusAfterNetworkError = () => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      };
+      focusAfterNetworkError();
+      setTimeout(focusAfterNetworkError, 10);
+      setTimeout(focusAfterNetworkError, 50);
     } finally {
       setLoading(false);
     }
@@ -314,8 +331,8 @@ const DispatchScan: React.FC = () => {
     const value = e.target.value.toUpperCase(); // Convert to uppercase
     setTrackerCode(value);
     
-    // Auto-scan when barcode data is entered (typically ends with Enter or is a complete barcode)
-    if (value.length > 5 && (value.includes('\n') || value.includes('\r'))) {
+    // Auto-scan when barcode data is entered (with line breaks - typical barcode scanner)
+    if (value.includes('\n') || value.includes('\r')) {
       // Remove any line breaks and get clean value
       const cleanValue = value.replace(/[\r\n]/g, '');
       
@@ -329,13 +346,22 @@ const DispatchScan: React.FC = () => {
         clearTimeout(scanTimeout);
       }
       
-      // Set the clean value and debounce the scan
+      // Set the clean value and INSTANT scan
       setTrackerCode(cleanValue);
       setLastScannedCode(cleanValue);
       
+      // INSTANT: No delay for instant response
+      handleScan();
+    }
+    
+    // Auto-scan when tracking ID is complete (typically 12-15 digits)
+    if (value.length >= 12 && !value.includes('\n') && !value.includes('\r')) {
+      // Small delay to ensure full barcode is captured
       const newTimeout = setTimeout(() => {
-        handleScan();
-      }, 200); // Increased debounce time to 200ms
+        if (trackerCode === value && value.length >= 12) {
+          handleScan();
+        }
+      }, 100); // Small delay to ensure full barcode capture
       
       setScanTimeout(newTimeout);
     }
@@ -431,7 +457,7 @@ const DispatchScan: React.FC = () => {
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('normal')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium ${
                 activeTab === 'normal'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -445,7 +471,7 @@ const DispatchScan: React.FC = () => {
             
             <button
               onClick={handleSwitchToPending}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium ${
                 activeTab === 'pending'
                   ? 'bg-white text-orange-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -459,7 +485,7 @@ const DispatchScan: React.FC = () => {
             
             <button
               onClick={handleSwitchToCancelled}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium ${
                 activeTab === 'cancelled'
                   ? 'bg-white text-red-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -502,9 +528,16 @@ const DispatchScan: React.FC = () => {
                       onChange={handleInputChange}
                       onKeyPress={handleKeyPress}
                       placeholder="SCAN TRACKER CODE (AUTO UPPERCASE)"
-                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-uppercase"
+                      className="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-lg font-bold text-center tracking-wider bg-white shadow-sm hover:border-purple-400"
                       disabled={loading}
                       autoFocus
+                      autoComplete="off"
+                      spellCheck="false"
+                      style={{ 
+                        fontSize: '18px',
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase'
+                      }}
                     />
                   </div>
 
@@ -519,7 +552,7 @@ const DispatchScan: React.FC = () => {
                       </div>
                       <div className="w-full bg-purple-200 rounded-full h-2">
                         <div 
-                          className="bg-purple-600 h-2 rounded-full transition-all duration-300" 
+                          className="bg-purple-600 h-2 rounded-full" 
                           style={{ width: `${getProgressPercentage(multiSkuProgress.scanned, multiSkuProgress.total)}%` }}
                         ></div>
                       </div>
@@ -542,7 +575,7 @@ const DispatchScan: React.FC = () => {
 
                   <button
                     onClick={resetForm}
-                    className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                    className="w-full mt-3 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
                   >
                     Reset
                   </button>
